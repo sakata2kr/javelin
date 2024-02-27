@@ -1,0 +1,145 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: 'alb'
+    alb.ingress.kubernetes.io/group.name: 'ccs-alb-front'
+    alb.ingress.kubernetes.io/load-balancer-name: 'ccs-alb-front'
+    alb.ingress.kubernetes.io/scheme: 'internal'
+    alb.ingress.kubernetes.io/subnets: 'subnet-059d70fbd1583091e, subnet-0034262ff41def28c'
+    alb.ingress.kubernetes.io/security-groups: 'sg-0447686ab4fb0c40c, sg-07498ee4578337176'
+    alb.ingress.kubernetes.io/target-type: 'ip'
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}, {"HTTP":80}]'
+    alb.ingress.kubernetes.io/manage-backend-security-group-rules: 'true'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/certificate-arn: 'arn:aws:acm:ap-northeast-2:559616336583:certificate/d4990d93-4330-487a-9da6-a87752c64b70'
+    alb.ingress.kubernetes.io/healthcheck-path: '/actuator/health'
+    alb.ingress.kubernetes.io/actions.forward-nexus-tg: >
+      {"type":"forward","targetGroupARN": "arn:aws:elasticloadbalancing:ap-northeast-2:559616336583:targetgroup/ccs-dev-k8s-nexus-internal-tg/22a4af0a58159a14"}
+  name: ccs-alb-front
+  namespace: ccs-dev
+spec:
+  rules:
+  - http:
+      paths:
+      - backend:
+          service:
+            name: ccs-cm
+            port:
+              number: 80
+        path: /actuator/health
+        pathType: Exact
+  - host: ccsdev.sktelecom.com
+    http:
+      paths:
+      - backend:
+          service:
+            name: cfs-front
+            port:
+              number: 80
+        path: /cfs
+        pathType: Prefix
+      - backend:
+          service:
+            name: ccs-cm
+            port:
+              number: 80
+        path: /
+        pathType: Prefix
+  - host: ccsapidev.sktelecom.com
+    http:
+      paths:
+      - backend:
+          service:
+            name: cfs-api
+            port:
+              number: 80
+        path: /cfs
+        pathType: Prefix
+      - backend:
+          service:
+            name: ccs-ide
+            port:
+              number: 80
+        path: /ide
+        pathType: Prefix
+      - backend:
+          service:
+            name: ccs-cm
+            port:
+              number: 80
+        path: /
+        pathType: Prefix
+  - host: ccsnexus.sktelecom.com
+    http:
+      paths:
+      - backend:
+          service:
+            name: forward-nexus-tg
+            port:
+              name:  use-annotation
+        path: /
+        pathType: Prefix
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: 'alb'
+    alb.ingress.kubernetes.io/group.name: 'ccs-alb-front'
+    alb.ingress.kubernetes.io/load-balancer-name: 'ccs-alb-front'
+    alb.ingress.kubernetes.io/scheme: 'internal'
+    alb.ingress.kubernetes.io/subnets: 'subnet-059d70fbd1583091e, subnet-0034262ff41def28c'
+    alb.ingress.kubernetes.io/security-groups: 'sg-0447686ab4fb0c40c, sg-07498ee4578337176'
+    alb.ingress.kubernetes.io/target-type: 'ip'
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}, {"HTTP":80}]'
+    alb.ingress.kubernetes.io/manage-backend-security-group-rules: 'true'
+    alb.ingress.kubernetes.io/certificate-arn: 'arn:aws:acm:ap-northeast-2:559616336583:certificate/d4990d93-4330-487a-9da6-a87752c64b70'
+    alb.ingress.kubernetes.io/healthcheck-path: '/actuator/health'
+  name: ccs-alb-front
+  namespace: ccs-stg
+spec:
+  rules:
+  - http:
+      paths:
+      - backend:
+          service:
+            name: ccs-cm
+            port:
+              number: 80
+        path: /actuator/health
+        pathType: Exact
+  - host: ccsstg.sktelecom.com
+    http:
+      paths:
+      - backend:
+          service:
+            name: cfs-front
+            port:
+              number: 80
+        path: /cfs
+        pathType: Prefix
+      - backend:
+          service:
+            name: ccs-cm
+            port:
+              number: 80
+        path: /
+        pathType: Prefix
+  - host: ccsapistg.sktelecom.com
+    http:
+      paths:
+      - backend:
+          service:
+            name: cfs-api
+            port:
+              number: 80
+        path: /cfs
+        pathType: Prefix
+      - backend:
+          service:
+            name: ccs-cm
+            port:
+              number: 80
+        path: /
+        pathType: Prefix
