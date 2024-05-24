@@ -60,6 +60,7 @@ public class JavelinConfig
     {
         private String url;
         private String prefix;
+        private String fixedVersion;
     }
 
     public void setRoot(String root)

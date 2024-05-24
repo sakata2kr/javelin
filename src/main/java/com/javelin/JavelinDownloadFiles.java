@@ -63,6 +63,7 @@ public class JavelinDownloadFiles
         List<Map<String, Object>> responseList = null;
         String downloadUrl = null;
         String downloadUrlPrefix = null;
+        String latestVersion = null;
 
         StopWatch stopWatch = new StopWatch("파일 다운로드 시작");
 
@@ -79,6 +80,7 @@ public class JavelinDownloadFiles
 
         stopWatch.stop();
         stopWatch.start("VSCODE 다운로드");
+
         // VSCODE 다운로드
         response = restTemplate.getForObject(JavelinConfig.getVscode().getUrl(), Map.class);
 
@@ -92,6 +94,7 @@ public class JavelinDownloadFiles
 
         stopWatch.stop();
         stopWatch.start("JDK 다운로드");
+
         // JDK 다운로드
         for ( String jdkVersion : JavelinConfig.getMicrosoftJdk() )
         {
@@ -101,58 +104,79 @@ public class JavelinDownloadFiles
 
         stopWatch.stop();
         stopWatch.start("apache maven 다운로드");
+
         // apache maven 다운로드
-        responseList = restTemplate.getForObject(JavelinConfig.getApacheMaven().getUrl(), List.class);
-
-        for (Map<String, Object> tempRes : responseList)
+        latestVersion = JavelinConfig.getApacheMaven().getFixedVersion();
+        if ( latestVersion == null || latestVersion.isEmpty() )
         {
-            if ( tempRes != null && tempRes.containsKey("name")
-            && tempRes.get("name").toString().startsWith("maven-")
-            && !tempRes.get("name").toString().contains("alpha")
-            && !tempRes.get("name").toString().contains("beta")
-             )
-          {
-              String latestVersion = tempRes.get("name").toString().replace("maven-", "");
-              downloadUrl = new StringBuilder().append(JavelinConfig.getApacheMaven().getPrefix())
-                            .append(latestVersion.substring(0, 1)).append("/")
-                            .append(latestVersion).append("/binaries/apache-maven-")
-                            .append(latestVersion).append("-bin.tar.gz")
-                            .toString();
+            responseList = restTemplate.getForObject(JavelinConfig.getApacheMaven().getUrl(), List.class);
 
-              downloadFile(downloadUrl, JavelinConfig.getRoot(), false);
-              break;
-          }
-        }
-
-        stopWatch.stop();
-        stopWatch.start("Gradle 다운로드");
-        // Gradle 다운로드
-        response = restTemplate.getForObject(JavelinConfig.getGradle().getUrl(), Map.class);
-        if ( response != null && response.containsKey("version") )
-        {
-            downloadUrl = new StringBuilder().append(JavelinConfig.getGradle().getPrefix())
-                          .append(response.get("version")).append("-bin.zip")
-                          .toString();
-
-            downloadFile(downloadUrl, JavelinConfig.getRoot(), false);
-        }
-
-        stopWatch.stop();
-        stopWatch.start("Git 다운로드");
-        // Git 다운로드
-        responseList = restTemplate.getForObject(JavelinConfig.getGit().getUrl(), List.class);
-        for (Map<String, Object> tempRes : responseList)
-        {
-            if ( tempRes != null && tempRes.containsKey("name") && !tempRes.get("name").toString().contains("-rc") )
+            for (Map<String, Object> tempRes : responseList)
             {
-                Map<String, Object> subResponse = restTemplate.getForObject(JavelinConfig.getGit().getPrefix() + tempRes.get("name"), Map.class);
-
-                if ( subResponse != null && subResponse.containsKey("assets") )
+                if ( tempRes != null && tempRes.containsKey("name")
+                  && tempRes.get("name").toString().startsWith("maven-")
+                  && !tempRes.get("name").toString().contains("alpha")
+                  && !tempRes.get("name").toString().contains("beta")
+                )
                 {
-                    responseList = (List) subResponse.get("assets");
+                    latestVersion = tempRes.get("name").toString().replace("maven-", "");
                     break;
                 }
             }
+        }
+
+        downloadUrl = new StringBuilder().append(JavelinConfig.getApacheMaven().getPrefix())
+                                        .append(latestVersion.substring(0, 1)).append("/")
+                                        .append(latestVersion).append("/binaries/apache-maven-")
+                                        .append(latestVersion).append("-bin.tar.gz")
+                                        .toString();
+
+        downloadFile(downloadUrl, JavelinConfig.getRoot(), false);
+
+        stopWatch.stop();
+        stopWatch.start("Gradle 다운로드");
+
+        // Gradle 다운로드
+        latestVersion = JavelinConfig.getGradle().getFixedVersion();
+
+        if ( latestVersion == null || latestVersion.isEmpty() )
+        {
+            response = restTemplate.getForObject(JavelinConfig.getGradle().getUrl(), Map.class);
+            if ( response != null && response.containsKey("version") )
+            {
+                latestVersion = response.get("version").toString();
+            }
+        }
+
+        downloadUrl = new StringBuilder().append(JavelinConfig.getGradle().getPrefix())
+                      .append(latestVersion).append("-bin.zip")
+                      .toString();
+
+        downloadFile(downloadUrl, JavelinConfig.getRoot(), false);
+
+        stopWatch.stop();
+        stopWatch.start("Git 다운로드");
+
+        // Git 다운로드
+        latestVersion = JavelinConfig.getGit().getFixedVersion();
+
+        if ( latestVersion == null || latestVersion.isEmpty() )
+        {
+            responseList = restTemplate.getForObject(JavelinConfig.getGit().getUrl(), List.class);
+            for (Map<String, Object> tempRes : responseList)
+            {
+                if ( tempRes != null && tempRes.containsKey("name") && !tempRes.get("name").toString().contains("-rc") )
+                {
+                    latestVersion = tempRes.get("name").toString();
+                    break;
+                }
+            }
+        }
+        Map<String, Object> subResponse = restTemplate.getForObject(JavelinConfig.getGit().getPrefix() + latestVersion, Map.class);
+
+        if ( subResponse != null && subResponse.containsKey("assets") )
+        {
+            responseList = (List) subResponse.get("assets");
         }
 
         if ( !responseList.isEmpty() )
@@ -172,6 +196,7 @@ public class JavelinDownloadFiles
 
         stopWatch.stop();
         stopWatch.start("Extensions 다운로드");
+
         // Extension Path를 확인 (/download/extensions)
         Files.createDirectories(Paths.get(JavelinConfig.getRoot() + ExtensionPath));
 
@@ -192,7 +217,7 @@ public class JavelinDownloadFiles
             {
                 String publisher = category.getPublisher();
                 String extensionName = category.getExtensionName();
-                String latestVersion = null;
+                latestVersion = null;
 
                 if ( category.getGiturl() != null && !category.getGiturl().isEmpty() )
                 {
@@ -230,7 +255,7 @@ public class JavelinDownloadFiles
                 {
                     diffVersionTarget = Arrays.asList(response.get("name").toString().toLowerCase().replace("v", "").split("\\."));
 
-                    if ( diffVersionSource.get(0).compareTo(diffVersionTarget.get(0)) >= 0 
+                    if ( diffVersionSource.get(0).compareTo(diffVersionTarget.get(0)) >= 0
                       && diffVersionSource.get(1).compareTo(diffVersionTarget.get(1)) >= 0 )
                     {
                         return response.get("name").toString().replace("v", "");
@@ -248,10 +273,10 @@ public class JavelinDownloadFiles
         headers.setContentType(MediaType.APPLICATION_JSON);
         String body = String.format("{\"filters\":[{\"criteria\":[{\"filterType\":7,\"value\":\"%s.%s\"}]}],\"flags\":870}", publisher, extensionName);
         HttpEntity<String> entity = new HttpEntity<>(body, headers);
-    
+
         @SuppressWarnings("null")
         ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
-    
+
         ObjectMapper mapper = new ObjectMapper();
         JsonNode root = mapper.readTree(response.getBody());
         return root.path("results").get(0).path("extensions").get(0).path("versions").get(0).path("version").asText();

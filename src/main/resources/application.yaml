@@ -1,5 +1,5 @@
 javelin:
-  root: "/download/"
+  root: "download/"
   vscode:
     url : "https://update.code.visualstudio.com/api/update/win32-x64/stable/latest"
     extensions:
@@ -70,11 +70,12 @@ javelin:
     - 17
     - 21
   apache-maven:
-   url: "https://api.github.com/repos/apache/maven/tags"
-   prefix: "https://downloads.apache.org/maven/maven-"
+    url: "https://api.github.com/repos/apache/maven/tags"
+    prefix: "https://downloads.apache.org/maven/maven-"
+    fixed-version: "3.9.6"
   gradle:
-   url: "https://services.gradle.org/versions/current"
-   prefix: "https://services.gradle.org/distributions/gradle-"
+    url: "https://services.gradle.org/versions/current"
+    prefix: "https://services.gradle.org/distributions/gradle-"
   git:
-   url: "https://api.github.com/repos/git-for-windows/git/tags"
-   prefix: "https://api.github.com/repos/git-for-windows/git/releases/tags/"
+    url: "https://api.github.com/repos/git-for-windows/git/tags"
+    prefix: "https://api.github.com/repos/git-for-windows/git/releases/tags/"
