@@ -4,7 +4,7 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
-import java.util.List;
+import java.util.LinkedHashSet;
 import java.util.Map;
 
 @Configuration
@@ -14,7 +14,7 @@ public class JavelinConfig
 {
     private String root;
     private Vscode vscode;
-    private List<String> microsoftJdk;
+    private LinkedHashSet<String> microsoftJdk;
     private Urls apacheMaven;
     private Urls gradle;
     private Urls git;
@@ -34,7 +34,7 @@ public class JavelinConfig
         private String root;
         private String version;
         private String vsix;
-        private Map<String, List<Category>> category;
+        private Map<String, LinkedHashSet<Category>> category;
     }
 
     @Data

@@ -1,12 +1,12 @@
 package com.javelin;
 
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -50,12 +50,6 @@ public class JavelinDownloadFiles
         //JavelinConfig.setDownloadComplete(true);
     }
 
-    //@Scheduled(cron = "0 30 8 * * ?")
-    public void ScheduledJob() throws Exception
-    {
-        DownloadJavelin();
-    }
-
     @SuppressWarnings({ "unchecked", "null", "rawtypes" })
     public void DownloadJavelin() throws Exception
     {
@@ -69,16 +63,6 @@ public class JavelinDownloadFiles
 
         JavelinConfig.setDownloadComplete(false);
 
-        stopWatch.start("디렉토리 삭제 시작");
-        // 상위 디렉토리 삭제
-        Path dirPath = Paths.get(JavelinConfig.getRoot());
-
-        if (Files.exists(dirPath))
-        {
-            Files.walk(dirPath).map(Path::toFile).sorted((o1, o2) -> -o1.compareTo(o2)).forEach(File::delete);
-        }
-
-        stopWatch.stop();
         stopWatch.start("VSCODE 다운로드");
 
         // VSCODE 다운로드
@@ -201,7 +185,7 @@ public class JavelinDownloadFiles
         Files.createDirectories(Paths.get(JavelinConfig.getRoot() + ExtensionPath));
 
         // 각 Extension 유형별 Path를 확인 (/download/extensions/{})
-        for (Map.Entry<String, List<JavelinConfig.Category>> entry : JavelinConfig.getVscode().getExtensions().getCategory().entrySet())
+        for (Map.Entry<String, LinkedHashSet<JavelinConfig.Category>> entry : JavelinConfig.getVscode().getExtensions().getCategory().entrySet())
         {
             downloadUrlPrefix = new StringBuilder().append(JavelinConfig.getRoot())
                                                 .append(ExtensionPath)

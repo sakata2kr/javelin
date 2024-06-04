@@ -1,5 +1,13 @@
+spring:
+  thymeleaf:
+    cache: false
+    enabled: true
+    check-template-location: true
+    prefix: classpath:/templates/
+    suffix: .html
+
 javelin:
-  root: "download/"
+  root: "/download/"
   vscode:
     url : "https://update.code.visualstudio.com/api/update/win32-x64/stable/latest"
     extensions:
@@ -65,6 +73,9 @@ javelin:
           extensionName: "vscode-spring-boot-dashboard"
         - publisher: "vscjava"
           extensionName: "vscode-spring-initializr"
+        golang:
+        - publisher: "golang"
+          extensionName: "Go"
   microsoft-jdk:
     - 11
     - 17
@@ -72,7 +83,7 @@ javelin:
   apache-maven:
     url: "https://api.github.com/repos/apache/maven/tags"
     prefix: "https://downloads.apache.org/maven/maven-"
-    fixed-version: "3.9.6"
+#    fixed-version: "3.9.6"
   gradle:
     url: "https://services.gradle.org/versions/current"
     prefix: "https://services.gradle.org/distributions/gradle-"
