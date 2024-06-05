@@ -1,5 +1,5 @@
 # Start with a base image containing Java runtime
-FROM amazoncorretto:17
+FROM amazoncorretto:17-alpine
 
 # Add Author info
 LABEL maintainer="sakata2@gmail.com"
