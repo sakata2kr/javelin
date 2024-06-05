@@ -63,6 +63,8 @@ public class JavelinController
 
         for (String jdkVersion : JavelinConfig.getMicrosoftJdk() )
         {
+            log.debug("JDK VERSION : {}", jdkVersion);
+            tempMap = new HashMap<>();
             tempMap.put("category", "Microsoft JDK");
             tempMap.put("subcategory", jdkVersion);
             jdkSet.add(tempMap);
