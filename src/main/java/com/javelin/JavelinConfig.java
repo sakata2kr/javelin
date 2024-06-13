@@ -18,6 +18,7 @@ public class JavelinConfig
     private Urls apacheMaven;
     private Urls gradle;
     private Urls git;
+    private Urls postman;
     private boolean downloadComplete = false;
 
     @Data
@@ -61,6 +62,7 @@ public class JavelinConfig
         private String url;
         private String prefix;
         private String fixedVersion;
+        private String suffix;
     }
 
     public void setRoot(String root)

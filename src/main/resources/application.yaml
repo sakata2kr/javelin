@@ -90,3 +90,7 @@ javelin:
   git:
     url: "https://api.github.com/repos/git-for-windows/git/tags"
     prefix: "https://api.github.com/repos/git-for-windows/git/releases/tags/"
+  postman:
+    prefix: "https://dl.pstmn.io/download/version/"
+    fixed-version: "9.31.32"
+    suffix: "/windows"

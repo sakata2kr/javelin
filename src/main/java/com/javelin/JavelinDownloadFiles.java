@@ -1,5 +1,6 @@
 package com.javelin;
 
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -62,6 +63,17 @@ public class JavelinDownloadFiles
         StopWatch stopWatch = new StopWatch("파일 다운로드 시작");
 
         JavelinConfig.setDownloadComplete(false);
+
+        stopWatch.start("디렉토리 삭제 시작");
+        // 상위 디렉토리 삭제
+        Path dirPath = Paths.get(JavelinConfig.getRoot());
+
+        if (Files.exists(dirPath))
+        {
+            Files.walk(dirPath).map(Path::toFile).sorted((o1, o2) -> -o1.compareTo(o2)).forEach(File::delete);
+        }
+
+        stopWatch.stop();
 
         stopWatch.start("VSCODE 다운로드");
 
@@ -179,6 +191,15 @@ public class JavelinDownloadFiles
         }
 
         stopWatch.stop();
+
+        // Postman 다운로드
+        stopWatch.start("Postman 다운로드");
+        downloadUrl = JavelinConfig.getPostman().getPrefix()
+                    + JavelinConfig.getPostman().getFixedVersion()
+                    + JavelinConfig.getPostman().getSuffix();
+        downloadFile( downloadUrl, JavelinConfig.getRoot(), false);
+        stopWatch.stop();
+
         stopWatch.start("Extensions 다운로드");
 
         // Extension Path를 확인 (/download/extensions)

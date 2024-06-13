@@ -1,8 +1,5 @@
 package com.javelin;
 
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -144,6 +141,13 @@ public class JavelinController
             else if ( fileName.toLowerCase().startsWith("git") )
             {
                 tempMap.put("category", "Git 설치 파일");
+                tempMap.put("filename", fileName);
+                tempMap.put("url", "/javelin/getFile/" + fileName);
+                baseSet.add(tempMap);
+            }
+            else if ( fileName.toLowerCase().startsWith("postman") )
+            {
+                tempMap.put("category", "Postman 설치 파일");
                 tempMap.put("filename", fileName);
                 tempMap.put("url", "/javelin/getFile/" + fileName);
                 baseSet.add(tempMap);
