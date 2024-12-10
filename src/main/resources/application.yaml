@@ -7,7 +7,7 @@ spring:
     suffix: .html
 
 javelin:
-  root: "/download/"
+  root: "./download/"
   vscode:
     url : "https://update.code.visualstudio.com/api/update/win32-x64/stable/latest"
     extensions:
@@ -18,7 +18,7 @@ javelin:
         common:
         - publisher: "ms-ceintl"
           extensionName: "vscode-language-pack-ko"
-          giturl: "https://api.github.com/repos/microsoft/vscode-loc/tags"
+          giturl: "https://api.github.com/repos/microsoft/vscode-loc/releases"
         - publisher: "esbenp"
           extensionName: "prettier-vscode"
         - publisher: "mohsen1"
