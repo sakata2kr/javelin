@@ -83,7 +83,7 @@ javelin:
   apache-maven:
     url: "https://api.github.com/repos/apache/maven/tags"
     prefix: "https://downloads.apache.org/maven/maven-"
-#    fixed-version: "3.9.6"
+    fixed-version: "3.9.9"
   gradle:
     url: "https://services.gradle.org/versions/current"
     prefix: "https://services.gradle.org/distributions/gradle-"
