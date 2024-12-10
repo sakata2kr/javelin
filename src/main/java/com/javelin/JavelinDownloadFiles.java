@@ -64,8 +64,6 @@ public class JavelinDownloadFiles
 
         JavelinConfig.setDownloadComplete(false);
 
-JavelinConfig.getVscode().setVersion("1.95");
-/*
         stopWatch.start("디렉토리 삭제 시작");
         // 상위 디렉토리 삭제
         Path dirPath = Paths.get(JavelinConfig.getRoot());
@@ -201,7 +199,7 @@ JavelinConfig.getVscode().setVersion("1.95");
                     + JavelinConfig.getPostman().getSuffix();
         downloadFile( downloadUrl, JavelinConfig.getRoot(), false);
         stopWatch.stop();
-*/
+
         stopWatch.start("Extensions 다운로드");
 
         // Extension Path를 확인 (/download/extensions)

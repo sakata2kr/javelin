@@ -7,7 +7,7 @@ spring:
     suffix: .html
 
 javelin:
-  root: "./download/"
+  root: "/download/"
   vscode:
     url : "https://update.code.visualstudio.com/api/update/win32-x64/stable/latest"
     extensions:
