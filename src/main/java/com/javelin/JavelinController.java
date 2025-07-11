@@ -19,7 +19,6 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import lombok.RequiredArgsConstructor;
@@ -27,7 +26,6 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Controller
-@RequestMapping("/javelin")
 @RequiredArgsConstructor
 public class JavelinController
 {    
@@ -56,16 +54,7 @@ public class JavelinController
         Set<Map<String, Object>> springExtSet = new LinkedHashSet<>();
         Set<Map<String, Object>> golangExtSet = new LinkedHashSet<>();
         Set<Map<String, Object>> expensionSet = new LinkedHashSet<>();
-        Set<Map<String, Object>> baseSet    = new LinkedHashSet<>();
-
-        for (String jdkVersion : JavelinConfig.getMicrosoftJdk() )
-        {
-            log.debug("JDK VERSION : {}", jdkVersion);
-            tempMap = new HashMap<>();
-            tempMap.put("category", "Microsoft JDK");
-            tempMap.put("subcategory", jdkVersion);
-            jdkSet.add(tempMap);
-        }
+        Set<Map<String, Object>> baseSet      = new LinkedHashSet<>();
 
         String[] parts = null;
 
@@ -117,12 +106,20 @@ public class JavelinController
                     expensionSet.add(tempMap);
                 }
             }
-            else if ( fileName.toLowerCase().startsWith("vscode") )
+            else if ( fileName.toLowerCase().startsWith("vscodium") )
             {
-                tempMap.put("category", "VS CODE 설치 파일");
+                tempMap.put("category", "VS CODIUM 설치 파일");
                 tempMap.put("filename", fileName);
                 tempMap.put("url", "/javelin/getFile/" + fileName);
                 baseSet.add(tempMap);
+            }
+            else if ( fileName.toLowerCase().contains("jdk") )
+            {
+                tempMap.put("category", "Eclipse Temurin JDK");
+                tempMap.put("subcategory", JavelinConfig.getEclipseTemurin().getVersion());
+                tempMap.put("filename", fileName);
+                tempMap.put("url", "/javelin/getFile/" + fileName);
+                jdkSet.add(tempMap);
             }
             else if ( fileName.toLowerCase().startsWith("apache-maven") )
             {
@@ -151,18 +148,6 @@ public class JavelinController
                 tempMap.put("filename", fileName);
                 tempMap.put("url", "/javelin/getFile/" + fileName);
                 baseSet.add(tempMap);
-            }
-            else
-            {
-                for (Map<String, Object> jdkInfo : jdkSet)
-                {
-                    if ( fileName.toLowerCase().startsWith("microsoft-jdk-" + jdkInfo.get("subcategory").toString()) )
-                    {
-                        jdkInfo.put("filename", fileName);
-                        jdkInfo.put("url", "/javelin/getFile/" + fileName);
-                        break;
-                    }
-                }
             }
         }
 
@@ -226,7 +211,7 @@ public class JavelinController
     {
         try
         {
-            Path filePath = Paths.get(JavelinConfig.getRoot() + JavelinConfig.getVscode().getExtensions().getRoot() + category).resolve(fileName).normalize();
+            Path filePath = Paths.get(JavelinConfig.getRoot() + JavelinConfig.getVscodium().getExtensions().getRoot() + category).resolve(fileName).normalize();
             Resource resource = new UrlResource(filePath.toUri());
             if (JavelinConfig.isDownloadComplete() && resource.exists())
             {

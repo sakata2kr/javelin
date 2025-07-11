@@ -3,10 +3,11 @@ package com.javelin;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -38,21 +39,13 @@ import lombok.extern.slf4j.Slf4j;
 @EnableScheduling
 public class JavelinDownloadFiles
 {
-    private static final String ExtensionPath = "extensions/";
     private RestTemplate restTemplate = new RestTemplate();
 
     private final JavelinConfig JavelinConfig;
-
+ 
     @PostConstruct
-    public void init() throws Exception
-    {
-        // 컨테이너가 시작될 때마다 실행할 작업을 여기에 작성합니다.
-        DownloadJavelin();
-        //JavelinConfig.setDownloadComplete(true);
-    }
-
     @SuppressWarnings({ "unchecked", "null", "rawtypes" })
-    public void DownloadJavelin() throws Exception
+    public void init() throws Exception
     {
         Map<String, Object> response = null;
         List<Map<String, Object>> responseList = null;
@@ -75,27 +68,79 @@ public class JavelinDownloadFiles
 
         stopWatch.stop();
 
-        stopWatch.start("VSCODE 다운로드");
+        stopWatch.start("VSCODIUM 다운로드");
 
-        // VSCODE 다운로드
-        response = restTemplate.getForObject(JavelinConfig.getVscode().getUrl(), Map.class);
+        // VSCODIUM 다운로드
+        responseList = restTemplate.getForObject(JavelinConfig.getVscodium().getUrl(), List.class);
 
-        if ( response != null && response.containsKey("name") && response.containsKey("url") )
+        if (responseList != null && !responseList.isEmpty()) 
         {
-            JavelinConfig.getVscode().setVersion(response.get("name").toString());
-            downloadUrl = response.get("url").toString();
+            String version = JavelinConfig.getVscodium().getVersion();
+            
+            // 안정 버전 찾기 (pre-release 제외)
+            if (version == null || version.isEmpty())
+            {
+                for (Map<String, Object> tag : responseList)
+                {
+                    if (tag.containsKey("name"))
+                    {
+                        String tagName = tag.get("name").toString();
+                        // pre-release나 beta 버전 제외
+                        if (!tagName.contains("-") && !tagName.contains("beta") && !tagName.contains("alpha"))
+                        {
+                            version = tagName;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            if ( version != null && !version.isEmpty() )
+            {
+                JavelinConfig.getVscodium().setVersion(version);
+                
+                // prefix와 filename-pattern을 사용하여 다운로드 URL 구성
+                downloadUrl = new StringBuilder()
+                    .append(JavelinConfig.getVscodium().getPrefix())
+                    .append(version)
+                    .append("/")
+                    .append(String.format(JavelinConfig.getVscodium().getFilenamePattern(), version))
+                    .toString();
 
-            downloadFile(downloadUrl, JavelinConfig.getRoot(), false);
+                downloadFile(downloadUrl, JavelinConfig.getRoot(), false);
+            }
         }
-
         stopWatch.stop();
-        stopWatch.start("JDK 다운로드");
+        stopWatch.start("Eclipse Temurin JDK 다운로드");
 
-        // JDK 다운로드
-        for ( String jdkVersion : JavelinConfig.getMicrosoftJdk() )
+        // Eclipse Temurin JDK 다운로드
+        String apiUrl = new StringBuilder()
+            .append(JavelinConfig.getEclipseTemurin().getUrl())
+            .append(JavelinConfig.getEclipseTemurin().getVersion())
+            .append("/")
+            .append(JavelinConfig.getEclipseTemurin().getSuffix())
+            .toString();
+
+
+        responseList = restTemplate.getForObject(apiUrl, List.class);
+
+        if (responseList != null && !responseList.isEmpty())
         {
-            downloadUrl = "https://aka.ms/download-jdk/microsoft-jdk-" + jdkVersion + "-windows-x64.zip";
-            downloadFile(downloadUrl, JavelinConfig.getRoot(), false);
+            Map<String, Object> jdkAsset = responseList.get(0);
+
+            if (jdkAsset.containsKey("binary"))
+            {
+                Map<String, Object> binary = (Map<String, Object>) jdkAsset.get("binary");
+                if (binary.containsKey("installer"))
+                {
+                    Map<String, Object> packageInfo = (Map<String, Object>) binary.get("installer");
+                    if (packageInfo.containsKey("link"))
+                    {
+                        downloadUrl = packageInfo.get("link").toString();
+                        downloadFile(downloadUrl, JavelinConfig.getRoot(), false);
+                    }
+                }
+            }
         }
 
         stopWatch.stop();
@@ -113,6 +158,7 @@ public class JavelinDownloadFiles
                   && tempRes.get("name").toString().startsWith("maven-")
                   && !tempRes.get("name").toString().contains("alpha")
                   && !tempRes.get("name").toString().contains("beta")
+                  && !tempRes.get("name").toString().contains("rc")
                 )
                 {
                     latestVersion = tempRes.get("name").toString().replace("maven-", "");
@@ -202,11 +248,13 @@ public class JavelinDownloadFiles
 
         stopWatch.start("Extensions 다운로드");
 
+        String ExtensionPath = JavelinConfig.getVscodium().getExtensions().getClass().getSimpleName();
+
         // Extension Path를 확인 (/download/extensions)
         Files.createDirectories(Paths.get(JavelinConfig.getRoot() + ExtensionPath));
 
         // 각 Extension 유형별 Path를 확인 (/download/extensions/{})
-        for (Map.Entry<String, LinkedHashSet<JavelinConfig.Category>> entry : JavelinConfig.getVscode().getExtensions().getCategory().entrySet())
+        for (Map.Entry<String, LinkedHashSet<JavelinConfig.Category>> entry : JavelinConfig.getVscodium().getExtensions().getCategory().entrySet())
         {
             downloadUrlPrefix = new StringBuilder().append(JavelinConfig.getRoot())
                                                 .append(ExtensionPath)
@@ -220,21 +268,7 @@ public class JavelinDownloadFiles
             // 유형별로 파일을 다운로드
             for (JavelinConfig.Category category : entry.getValue())
             {
-                String publisher = category.getPublisher();
-                String extensionName = category.getExtensionName();
-                latestVersion = null;
-
-                if ( category.getGiturl() != null && !category.getGiturl().isEmpty() )
-                {
-                    latestVersion = getGitVersion(category.getGiturl(), JavelinConfig.getVscode().getVersion());
-                }
-
-                if ( latestVersion == null || latestVersion.isEmpty() )
-                {
-                    latestVersion = getLatestVersion(publisher, extensionName);
-                }
-
-                downloadLatestVersion(publisher, extensionName, latestVersion, downloadUrlPrefix);
+                getLatestVersion( category.getPublisher(), category.getExtensionName(), downloadUrlPrefix);
             }
         }
 
@@ -244,69 +278,65 @@ public class JavelinDownloadFiles
         log.info("FINISH DOWNLOAD !!");
     }
 
-    @SuppressWarnings({ "unchecked", "null" })
-    private String getGitVersion(String gitUrl, String vsCodeVersion) throws Exception
+    private void getLatestVersion(String publisher, String extensionName, String baseUrl) throws IOException
     {
-        List<String> diffVersionSource = Arrays.asList(vsCodeVersion.split("\\."));
-        List<String> diffVersionTarget = null;
+        // Open VSX Registry API 사용
+        String url = "https://open-vsx.org/api/" + publisher + "/" + extensionName;
+        String latestVersion = null;
+        String downloadUrl = null;
+        String targetPath = null;
 
-        List<Map<String, Object>> responseList = restTemplate.getForObject(gitUrl, List.class);
-
-        if ( responseList != null )
+        try
         {
-            for ( Map<String, Object> response : responseList)
-            {
-                if ( response.containsKey("assets") && response.get("assets").toString() != "[]" && response.containsKey("name") )
-                {
-                    diffVersionTarget = Arrays.asList(response.get("name").toString().toLowerCase().replace("v", "").split("\\."));
+            ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
 
-                    if ( diffVersionSource.get(0).compareTo(diffVersionTarget.get(0)) >= 0
-                      && diffVersionSource.get(1).compareTo(diffVersionTarget.get(1)) >= 0 )
-                    {
-                        return response.get("name").toString().replace("v", "");
-                    }
-                }
-            }
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode root = mapper.readTree(response.getBody());
+
+            latestVersion = root.path("version").asText();
+            downloadUrl = String.format("https://open-vsx.org/api/%s/%s/%s/file/%s.%s-%s.vsix", publisher, extensionName, latestVersion, publisher, extensionName, latestVersion);
+            targetPath = baseUrl + publisher + "." + extensionName + "." + latestVersion + ".vsix";
+
+            downloadFile(downloadUrl, targetPath, true);
         }
+        catch (Exception e)
+        {
+            url = "https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery?api-version=6.1-preview.1";
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            String body = String.format("{\"filters\":[{\"criteria\":[{\"filterType\":7,\"value\":\"%s.%s\"}]}],\"flags\":870}", publisher, extensionName);
+            HttpEntity<String> entity = new HttpEntity<>(body, headers);
+    
+            ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
+    
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode root = mapper.readTree(response.getBody());
 
-        return null;
-    }
-    private String getLatestVersion(String publisher, String extensionName) throws IOException
-    {
-        String url = String.format(JavelinConfig.getVscode().getExtensions().getVersion());
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        String body = String.format("{\"filters\":[{\"criteria\":[{\"filterType\":7,\"value\":\"%s.%s\"}]}],\"flags\":870}", publisher, extensionName);
-        HttpEntity<String> entity = new HttpEntity<>(body, headers);
+            latestVersion = root.path("results").get(0).path("extensions").get(0).path("versions").get(0).path("version").asText();
+            downloadUrl = String.format("https://%s.gallery.vsassets.io/_apis/public/gallery/publisher/%s/extension/%s/%s/assetbyname/Microsoft.VisualStudio.Services.VSIXPackage", publisher, publisher, extensionName, latestVersion);
+            targetPath = baseUrl + publisher + "." + extensionName + "." + latestVersion + ".vsix";
 
-        @SuppressWarnings("null")
-        ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
-
-        ObjectMapper mapper = new ObjectMapper();
-        JsonNode root = mapper.readTree(response.getBody());
-        return root.path("results").get(0).path("extensions").get(0).path("versions").get(0).path("version").asText();
-    }
-
-    private void downloadLatestVersion(String publisher, String extensionName, String latestVersion, String baseUrl) throws Exception {
-        String downloadUrl = String.format(JavelinConfig.getVscode().getExtensions().getVsix(), publisher, publisher, extensionName, latestVersion);
-        String targetPath = baseUrl + publisher + "." + extensionName + "." + latestVersion + ".vsix";
-        downloadFile(downloadUrl, targetPath, true);
+            downloadFile(downloadUrl, targetPath, true);
+        }
     }
 
-    @SuppressWarnings("null")
     private void downloadFile(String url, String targetPath, Boolean isExtensions) throws IOException
     {
-        log.info("DOWNLOAD URL : {}", url);
+        String decodeUrl = URLDecoder.decode(url, StandardCharsets.UTF_8);
+
+        log.info("DOWNLOAD URL : {}", decodeUrl);
+        log.info("targetPath : {}", targetPath );
+        //if (true) return;
         RestTemplate restTemplate = new RestTemplate();
 
         // Prepare the request callback
         RequestCallback requestCallback = restTemplate.httpEntityCallback(null);
 
         // Prepare the response extractor
-        ResponseExtractor<Void> responseExtractor = new FileResponseExtractor(targetPath, url, isExtensions);
+        ResponseExtractor<Void> responseExtractor = new FileResponseExtractor(targetPath, decodeUrl, isExtensions);
 
         // Execute the request
-        restTemplate.execute(url, HttpMethod.GET, requestCallback, responseExtractor);
+        restTemplate.execute(decodeUrl, HttpMethod.GET, requestCallback, responseExtractor);
     }
 
     private static class FileResponseExtractor implements ResponseExtractor<Void>

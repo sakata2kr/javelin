@@ -13,13 +13,52 @@ import java.util.Map;
 public class JavelinConfig
 {
     private String root;
-    private Vscode vscode;
-    private LinkedHashSet<String> microsoftJdk;
+    private Vscodium vscodium;
+    private EclipseTemurin eclipseTemurin;
     private Urls apacheMaven;
     private Urls gradle;
     private Urls git;
     private Urls postman;
     private boolean downloadComplete = false;
+
+    public void setRoot(String root)
+    {
+        if (!root.endsWith("/") )
+        {
+            root += "/";
+        }
+
+        this.root = root;
+    }
+
+    @Data
+    public static class Vscodium
+    {
+        private String url;
+        private String prefix;
+        private String filenamePattern;
+        private String version;
+        private Extension extensions;
+
+    }
+
+    @Data
+    public static class EclipseTemurin
+    {
+        private String version;
+        private String url;
+        private String suffix;
+
+        public void setUrl(String url)
+        {
+            if (!url.endsWith("/") )
+            {
+                url += "/";
+            }
+    
+            this.url = url;
+        }
+    }
 
     @Data
     public static class Category
@@ -39,39 +78,11 @@ public class JavelinConfig
     }
 
     @Data
-    public static class Vscode
-    {
-        private String url;
-        private String version;
-        private Extension extensions;
-
-        public void setUrl(String url)
-        {
-            if (!url.endsWith("/") )
-            {
-                url += "/";
-            }
-
-            this.url = url;
-        }
-    }
-
-    @Data
     public static class Urls
     {
         private String url;
         private String prefix;
         private String fixedVersion;
         private String suffix;
-    }
-
-    public void setRoot(String root)
-    {
-        if (!root.endsWith("/") )
-        {
-            root += "/";
-        }
-
-        this.root = root;
     }
 }
