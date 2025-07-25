@@ -4,6 +4,13 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
+import java.time.Duration;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.netty.http.client.HttpClient;
+
 import java.util.LinkedHashSet;
 import java.util.Map;
 
@@ -12,6 +19,7 @@ import java.util.Map;
 @Data
 public class JavelinConfig
 {
+    private String GitHubToken;
     private String root;
     private Vscodium vscodium;
     private EclipseTemurin eclipseTemurin;
@@ -84,5 +92,18 @@ public class JavelinConfig
         private String prefix;
         private String fixedVersion;
         private String suffix;
+    }
+
+    @Bean
+    public WebClient webClient() {
+        return WebClient.builder()
+                        .defaultHeader("Authorization", "Bearer " + GitHubToken.trim())
+                        .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(50 * 1024 * 1024)) // 50MB
+                        .clientConnector(new ReactorClientHttpConnector(
+                            HttpClient.create()
+                                .followRedirect(true) // 리다이렉션 자동 처리
+                                .responseTimeout(Duration.ofSeconds(30))
+                        ))
+                        .build();
     }
 }

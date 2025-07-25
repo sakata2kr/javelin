@@ -7,6 +7,7 @@ spring:
     suffix: .html
 
 javelin:
+  github-token: ${GITHUB_TOKEN}
   root: "download/"
   vscodium:
     url: "https://api.github.com/repos/VSCodium/vscodium/tags"
@@ -83,3 +84,7 @@ javelin:
     prefix: "https://dl.pstmn.io/download/version/"
     fixed-version: "9.31.32"
     suffix: "/windows"
+
+logging:
+  level:
+    root: INFO
