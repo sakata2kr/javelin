@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
@@ -45,23 +46,32 @@ public class JavelinDownloadFiles {
         String extractDownloadUrl(T response) throws Exception;
     }
 
-    @PostConstruct
+    //@PostConstruct
     public void init() {
         javelinConfig.setDownloadComplete(false);
 
         // 디렉토리 삭제
         deleteDirectory();
 
+        // 다운로드 작업 리스트 생성
+        java.util.List<Mono<Void>> downloadTasks = new java.util.ArrayList<>();
+        downloadTasks.add(downloadVscodium());
+        downloadTasks.add(downloadAmazonCorrettoJDK());
+        downloadTasks.add(downloadApacheMaven());
+        downloadTasks.add(downloadGradle());
+        downloadTasks.add(downloadGit());
+        downloadTasks.add(downloadExtensions());
+        
+        // Postman이 활성화된 경우에만 다운로드 목록에 추가
+        if (javelinConfig.getPostman().isEnabled()) {
+            log.info("Postman 다운로드가 활성화되어 있습니다.");
+            downloadTasks.add(downloadPostman());
+        } else {
+            log.info("Postman 다운로드가 비활성화되어 있습니다.");
+        }
+        
         // 다운로드 작업 비동기로 실행, 블로킹 하지 않고 구독 시작
-        Flux<Mono<Void>> downloads = Flux.just(
-            downloadVscodium(),
-            downloadEclipseTemurinJDK(),
-            downloadApacheMaven(),
-            downloadGradle(),
-            downloadGit(),
-            downloadPostman(),
-            downloadExtensions()
-        );
+        Flux<Mono<Void>> downloads = Flux.fromIterable(downloadTasks);
 
         downloads.flatMap(mono -> mono.onErrorContinue((e, obj) -> {
                     log.error("Download error on task: {}", obj, e);
@@ -146,40 +156,34 @@ public class JavelinDownloadFiles {
                                 .toString();
                     }
                     return null;
+                })
+                .onErrorResume(WebClientResponseException.class, e -> {
+                    if (e.getStatusCode().value() == 401) {
+                        log.warn("GitHub API 인증 실패 (401). VSCodium 다운로드를 건너뜁니다.");
+                    } else {
+                        log.error("VSCodium API 호출 실패: {}", e.getMessage());
+                    }
+                    return Mono.empty();
+                })
+                .onErrorResume(Exception.class, e -> {
+                    log.error("VSCodium 다운로드 중 예상치 못한 오류: {}", e.getMessage());
+                    return Mono.empty();
                 });
     }
 
-    // Eclipse Temurin JDK 다운로드
-    private Mono<Void> downloadEclipseTemurinJDK() {
-        log.info("Eclipse Temurin JDK 다운로드");
+    // Amazon Corretto JDK 다운로드
+    private Mono<Void> downloadAmazonCorrettoJDK() {
+        log.info("Amazon Corretto JDK 다운로드");
 
-        String apiUrl = new StringBuilder()
-                .append(javelinConfig.getEclipseTemurin().getUrl())
-                .append(javelinConfig.getEclipseTemurin().getVersion())
-                .append("/")
-                .append(javelinConfig.getEclipseTemurin().getSuffix())
-                .toString();
+        // URL 템플릿에서 {version}을 실제 버전으로 치환
+        String downloadUrl = javelinConfig.getAmazonCorretto().getUrl()
+                .replace("{version}", javelinConfig.getAmazonCorretto().getVersion());
 
-        return webClient.get()
-                .uri(apiUrl)
-                .retrieve()
-                .bodyToMono(new ParameterizedTypeReference<List<Map<String, Object>>>() {})
-                .flatMap(responseList -> {
-                    if (responseList != null && !responseList.isEmpty()) {
-                        Map<String, Object> jdkAsset = responseList.get(0);
-                        if (jdkAsset.containsKey("binary")) {
-                            @SuppressWarnings("unchecked")
-                            Map<String, Object> binary = (Map<String, Object>) jdkAsset.get("binary");
-                            if (binary.containsKey("installer")) {
-                                @SuppressWarnings("unchecked")
-                                Map<String, Object> packageInfo = (Map<String, Object>) binary.get("installer");
-                                if (packageInfo.containsKey("link")) {
-                                    String downloadUrl = packageInfo.get("link").toString();
-                                    return downloadFile(downloadUrl, javelinConfig.getRoot(), false);
-                                }
-                            }
-                        }
-                    }
+        log.info("Amazon Corretto 다운로드 URL: {}", downloadUrl);
+
+        return downloadFile(downloadUrl, javelinConfig.getRoot(), false)
+                .onErrorResume(Exception.class, e -> {
+                    log.error("Amazon Corretto 다운로드 중 오류: {}", e.getMessage());
                     return Mono.empty();
                 });
     }
@@ -226,6 +230,18 @@ public class JavelinDownloadFiles {
                     .toString();
 
             return downloadFile(downloadUrl, javelinConfig.getRoot(), false);
+        })
+        .onErrorResume(WebClientResponseException.class, e -> {
+            if (e.getStatusCode().value() == 401) {
+                log.warn("GitHub API 인증 실패 (401). Apache Maven 다운로드를 건너뜁니다.");
+            } else {
+                log.error("Apache Maven API 호출 실패: {}", e.getMessage());
+            }
+            return Mono.empty();
+        })
+        .onErrorResume(Exception.class, e -> {
+            log.error("Apache Maven 다운로드 중 예상치 못한 오류: {}", e.getMessage());
+            return Mono.empty();
         });
     }
 
@@ -311,7 +327,19 @@ public class JavelinDownloadFiles {
                     }
                     return Mono.empty();
                 })
-        );
+        )
+        .onErrorResume(WebClientResponseException.class, e -> {
+            if (e.getStatusCode().value() == 401) {
+                log.warn("GitHub API 인증 실패 (401). Git 다운로드를 건너뜁니다.");
+            } else {
+                log.error("Git API 호출 실패: {}", e.getMessage());
+            }
+            return Mono.empty();
+        })
+        .onErrorResume(Exception.class, e -> {
+            log.error("Git 다운로드 중 예상치 못한 오류: {}", e.getMessage());
+            return Mono.empty();
+        });
     }
 
     // Postman 다운로드
@@ -419,119 +447,105 @@ public class JavelinDownloadFiles {
                 });
     }
 
-    // 파일 다운로드 및 저장
-    private Mono<Void> downloadFile(String url, String targetPath, Boolean isExtensions)
-    {
+    // 파일 다운로드 및 저장 - hang 방지를 위한 개선된 버전
+    private Mono<Void> downloadFile(String url, String targetPath, Boolean isExtensions) {
         String decodeUrl = URLDecoder.decode(url, StandardCharsets.UTF_8);
         
         log.info("DOWNLOAD URL : {}", decodeUrl);
         log.info("Determining final file path for: {}", targetPath); 
         
-        return webClient.get()
-            .uri(decodeUrl)
-            .retrieve()
-            .toEntity(Void.class)
-            .flatMap(responseEntity -> {
-                // 파일명 결정 로직 (기존과 동일)
-                String filename = null;
-                HttpHeaders headers = responseEntity.getHeaders();
-                String contentDisposition = headers.getFirst("Content-Disposition");
-    
-                if (isExtensions) {
-                    filename = Paths.get(targetPath).getFileName().toString();
-                } else if (contentDisposition != null && !contentDisposition.isEmpty()) {
-                    java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("filename\\*?=['\"]?(?:UTF-8''|utf-8'')?([^;\"\\n]+)['\"]?").matcher(contentDisposition);
-                    if (matcher.find()) {
-                        filename = URLDecoder.decode(matcher.group(1), StandardCharsets.UTF_8);
+        return Mono.fromCallable(() -> {
+            // 파일명 결정 로직을 먼저 처리
+            String filename = null;
+            
+            if (isExtensions) {
+                filename = Paths.get(targetPath).getFileName().toString();
+            } else {
+                int lastSlashIndex = decodeUrl.lastIndexOf("/");
+                if (lastSlashIndex >= 0 && lastSlashIndex < decodeUrl.length() - 1) {
+                    filename = decodeUrl.substring(lastSlashIndex + 1);
+                    int questionMarkIndex = filename.indexOf("?");
+                    if (questionMarkIndex > -1) {
+                        filename = filename.substring(0, questionMarkIndex);
                     }
-                } 
-                
-                if (filename == null || filename.isEmpty()) {
-                    int lastSlashIndex = decodeUrl.lastIndexOf("/");
-                    if (lastSlashIndex >= 0 && lastSlashIndex < decodeUrl.length() - 1) {
-                        filename = decodeUrl.substring(lastSlashIndex + 1);
-                        int questionMarkIndex = filename.indexOf("?");
-                        if (questionMarkIndex > -1) {
-                            filename = filename.substring(0, questionMarkIndex);
-                        }
-                        int hashIndex = filename.indexOf("#");
-                        if (hashIndex > -1) {
-                            filename = filename.substring(0, hashIndex);
-                        }
+                    int hashIndex = filename.indexOf("#");
+                    if (hashIndex > -1) {
+                        filename = filename.substring(0, hashIndex);
                     }
                 }
-    
-                if (filename == null || filename.isEmpty()) {
-                    return Mono.error(new IOException("Cannot determine filename from the response or URL for: " + decodeUrl));
-                }
-    
-                Path finalTargetPath;
-                if (isExtensions) {
-                    finalTargetPath = Paths.get(targetPath);
-                } else {
-                    finalTargetPath = Paths.get(targetPath, filename);
-                }
-    
-                log.info("Final file will be written to: {}", finalTargetPath.toAbsolutePath());
-    
-                try {
-                    Files.createDirectories(finalTargetPath.getParent());
-                } catch (IOException e) {
-                    return Mono.error(new RuntimeException("Failed to create directories for " + finalTargetPath.getParent(), e));
-                }
-                
-                // WebClient 설정에서 리다이렉션이 자동 처리되므로 직접 다운로드
-                return webClient.get()
-                    .uri(decodeUrl)
-                    .retrieve()
-                    .bodyToFlux(DataBuffer.class)
-                    .doOnNext(dataBuffer -> {
+            }
+            
+            if (filename == null || filename.isEmpty()) {
+                throw new RuntimeException("Cannot determine filename from URL: " + decodeUrl);
+            }
+            
+            Path finalTargetPath = isExtensions ? Paths.get(targetPath) : Paths.get(targetPath, filename);
+            
+            try {
+                Files.createDirectories(finalTargetPath.getParent());
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to create directories for " + finalTargetPath.getParent(), e);
+            }
+            
+            return finalTargetPath;
+        })
+        .subscribeOn(Schedulers.boundedElastic())
+        .flatMap(finalTargetPath -> {
+            log.info("Final file will be written to: {}", finalTargetPath.toAbsolutePath());
+            
+            // 스트리밍 다운로드로 메모리 사용량 최적화
+            return webClient.get()
+                .uri(decodeUrl)
+                .retrieve()
+                .bodyToFlux(DataBuffer.class)
+                .timeout(Duration.ofMinutes(10)) // 전체 다운로드 타임아웃
+                .doOnNext(dataBuffer -> {
+                    if (log.isDebugEnabled()) {
                         log.debug("Received DataBuffer of size: {} bytes", dataBuffer.readableByteCount());
-                    })
-                    .doOnComplete(() -> {
-                        log.info("DataBuffer flux completed for URL: {}", decodeUrl);
-                    })
-                    .doOnError(e -> {
-                        log.error("Error in DataBuffer flux for URL: {}", decodeUrl, e);
-                    })
-                    .as(dataBufferFlux -> {
-                        log.info("Starting file write to: {}", finalTargetPath);
-                        return DataBufferUtils.write(dataBufferFlux, finalTargetPath)
-                            .subscribeOn(Schedulers.boundedElastic())
-                            .doOnSuccess(v -> {
-                                log.info("DataBufferUtils.write completed for: {}", finalTargetPath);
-                            })
-                            .doOnError(e -> {
-                                log.error("Error in DataBufferUtils.write for: {}", finalTargetPath, e);
-                            });
-                    })
-                    .then(Mono.fromCallable(() -> {
-                        // 파일 쓰기 완료 후 크기 확인
-                        try {
-                            long fileSize = Files.size(finalTargetPath);
-                            log.info("Final file size check - {} : {} bytes", finalTargetPath, fileSize);
-                            
-                            if (fileSize == 0) {
-                                log.warn("File is empty! Checking if file exists and is readable: exists={}, readable={}", 
-                                    Files.exists(finalTargetPath), Files.isReadable(finalTargetPath));
-                            }
-                            
-                            return fileSize;
-                        } catch (IOException e) {
-                            log.error("Error checking file size for {}: {}", finalTargetPath, e.getMessage(), e);
-                            return 0L;
+                    }
+                })
+                .doOnComplete(() -> {
+                    log.info("DataBuffer flux completed for URL: {}", decodeUrl);
+                })
+                .doOnError(e -> {
+                    log.error("Error in DataBuffer flux for URL: {}", decodeUrl, e);
+                })
+                .transform(dataBufferFlux -> 
+                    DataBufferUtils.write(dataBufferFlux, finalTargetPath)
+                        .subscribeOn(Schedulers.boundedElastic())
+                        .doOnSuccess(v -> {
+                            log.info("DataBufferUtils.write completed for: {}", finalTargetPath);
+                        })
+                        .doOnError(e -> {
+                            log.error("Error in DataBufferUtils.write for: {}", finalTargetPath, e);
+                        })
+                )
+                .then(Mono.fromCallable(() -> {
+                    // 파일 쓰기 완료 후 크기 확인
+                    try {
+                        long fileSize = Files.size(finalTargetPath);
+                        log.info("Final file size check - {} : {} bytes", finalTargetPath, fileSize);
+                        
+                        if (fileSize == 0) {
+                            log.warn("File is empty! Checking if file exists and is readable: exists={}, readable={}", 
+                                Files.exists(finalTargetPath), Files.isReadable(finalTargetPath));
                         }
-                    }).subscribeOn(Schedulers.boundedElastic()))
-                    .then()
-                    .doOnError(e -> log.error("Overall error during file download for URL: {} and targetPath: {}", decodeUrl, finalTargetPath, e));
-            })
-            .onErrorResume(WebClientResponseException.class, e -> {
-                log.error("WebClient HTTP error during download from {}. Status: {}, Body: {}", decodeUrl, e.getStatusCode(), e.getResponseBodyAsString(), e);
-                return Mono.error(new RuntimeException("Failed to download file from " + decodeUrl + " due to HTTP error: " + e.getStatusCode(), e));
-            })
-            .onErrorResume(Exception.class, e -> {
-                log.error("An unexpected error occurred during download from {}: {}", decodeUrl, e.getMessage(), e);
-                return Mono.error(new RuntimeException("An unexpected error occurred during download from " + decodeUrl, e));
-            });
+                        
+                        return fileSize;
+                    } catch (IOException e) {
+                        log.error("Error checking file size for {}: {}", finalTargetPath, e.getMessage(), e);
+                        return 0L;
+                    }
+                }).subscribeOn(Schedulers.boundedElastic()).then())
+                .doOnError(e -> log.error("Overall error during file download for URL: {} and targetPath: {}", decodeUrl, finalTargetPath, e));
+        })
+        .onErrorResume(WebClientResponseException.class, e -> {
+            log.error("WebClient HTTP error during download from {}. Status: {}, Body: {}", decodeUrl, e.getStatusCode(), e.getResponseBodyAsString(), e);
+            return Mono.error(new RuntimeException("Failed to download file from " + decodeUrl + " due to HTTP error: " + e.getStatusCode(), e));
+        })
+        .onErrorResume(Exception.class, e -> {
+            log.error("An unexpected error occurred during download from {}: {}", decodeUrl, e.getMessage(), e);
+            return Mono.error(new RuntimeException("An unexpected error occurred during download from " + decodeUrl, e));
+        });
     }
 }

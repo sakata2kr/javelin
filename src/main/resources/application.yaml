@@ -7,13 +7,12 @@ spring:
     suffix: .html
 
 javelin:
-  github-token: ${GITHUB_TOKEN}
+  github-token: ${GITHUB_TOKEN:}  # 환경변수가 없으면 빈 문자열
   root: "download/"
   vscodium:
     url: "https://api.github.com/repos/VSCodium/vscodium/tags"
     prefix: "https://github.com/VSCodium/vscodium/releases/download/"
     filename-pattern: "VSCodiumSetup-x64-%s.exe"
-    version: "1.101.24242"
     extensions:
       root: "extensions/"
       category:
@@ -23,11 +22,15 @@ javelin:
         - publisher: "esbenp"
           extensionName: "prettier-vscode"
         - publisher: "redhat"
+          extensionName: "vscode-xml"
+        - publisher: "redhat"
           extensionName: "vscode-yaml"
         - publisher: "pkief"
           extensionName: "material-icon-theme"
         - publisher: "tyriar"
           extensionName: "sort-lines"
+        - publisher: "usernamehw"
+          extensionName: "remove-empty-lines"
         java:
         - publisher: "redhat"
           extensionName: "java"
@@ -40,20 +43,9 @@ javelin:
         - publisher: "vscjava"
           extensionName: "vscode-java-test"
         - publisher: "vscjava"
-          extensionName: "vscode-lombok"
-        - publisher: "vscjava"
           extensionName: "vscode-maven"
         - publisher: "vscjava"
           extensionName: "vscode-gradle"
-        python:
-        - publisher: "ms-python"
-          extensionName: "debugpy"
-        - publisher: "ms-python"
-          extensionName: "isort"
-        - publisher: "ms-python"
-          extensionName: "python"
-        - publisher: "ms-python"
-          extensionName: "vscode-pylance"
         spring:
         - publisher: "vmware"
           extensionName: "vscode-boot-dev-pack"
@@ -66,10 +58,9 @@ javelin:
         openapi:
         - publisher: "42crunch"
           extensionName: "vscode-openapi"
-  eclipse-temurin:
-    version: 21
-    url: "https://api.adoptium.net/v3/assets/latest"
-    suffix: "hotspot?architecture=x64&image_type=jdk&os=windows&vendor=eclipse"
+  amazon-corretto:
+    version: 21  # 지원되는 버전: 8, 11, 17, 21, 22
+    url: "https://corretto.aws/downloads/latest/amazon-corretto-{version}-x64-windows-jdk.msi"
   apache-maven:
     url: "https://api.github.com/repos/apache/maven/tags"
     prefix: "https://downloads.apache.org/maven/maven-"
@@ -81,10 +72,11 @@ javelin:
     url: "https://api.github.com/repos/git-for-windows/git/tags"
     prefix: "https://api.github.com/repos/git-for-windows/git/releases/tags/"
   postman:
+    enabled: false  # Postman 다운로드를 선택적으로 활성화/비활성화
     prefix: "https://dl.pstmn.io/download/version/"
     fixed-version: "9.31.32"
     suffix: "/windows"
 
 logging:
   level:
-    root: INFO
+    root: WARN

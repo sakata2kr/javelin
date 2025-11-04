@@ -10,6 +10,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.netty.http.client.HttpClient;
+import io.netty.handler.timeout.ReadTimeoutHandler;
+import io.netty.handler.timeout.WriteTimeoutHandler;
+import io.netty.channel.ChannelOption;
 
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -22,7 +25,7 @@ public class JavelinConfig
     private String GitHubToken;
     private String root;
     private Vscodium vscodium;
-    private EclipseTemurin eclipseTemurin;
+    private AmazonCorretto amazonCorretto;
     private Urls apacheMaven;
     private Urls gradle;
     private Urls git;
@@ -51,21 +54,10 @@ public class JavelinConfig
     }
 
     @Data
-    public static class EclipseTemurin
+    public static class AmazonCorretto
     {
         private String version;
         private String url;
-        private String suffix;
-
-        public void setUrl(String url)
-        {
-            if (!url.endsWith("/") )
-            {
-                url += "/";
-            }
-    
-            this.url = url;
-        }
     }
 
     @Data
@@ -88,6 +80,7 @@ public class JavelinConfig
     @Data
     public static class Urls
     {
+        private boolean enabled = true;  // 기본값은 true
         private String url;
         private String prefix;
         private String fixedVersion;
@@ -96,14 +89,24 @@ public class JavelinConfig
 
     @Bean
     public WebClient webClient() {
-        return WebClient.builder()
-                        .defaultHeader("Authorization", "Bearer " + GitHubToken.trim())
-                        .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(50 * 1024 * 1024)) // 50MB
-                        .clientConnector(new ReactorClientHttpConnector(
-                            HttpClient.create()
-                                .followRedirect(true) // 리다이렉션 자동 처리
-                                .responseTimeout(Duration.ofSeconds(30))
-                        ))
-                        .build();
+        HttpClient httpClient = HttpClient.create()
+                .followRedirect(true) // 리다이렉션 자동 처리
+                .responseTimeout(Duration.ofMinutes(10)) // 큰 파일 다운로드를 위해 10분으로 증가
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 30000) // 연결 타임아웃 30초
+                .doOnConnected(conn -> 
+                    conn.addHandlerLast(new ReadTimeoutHandler(300)) // 읽기 타임아웃 5분
+                        .addHandlerLast(new WriteTimeoutHandler(60)) // 쓰기 타임아웃 1분
+                );
+
+        WebClient.Builder builder = WebClient.builder()
+                        .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(100 * 1024 * 1024)) // 100MB로 증가
+                        .clientConnector(new ReactorClientHttpConnector(httpClient));
+        
+        // GitHub 토큰이 있을 때만 Authorization 헤더 추가
+        if (GitHubToken != null && !GitHubToken.trim().isEmpty()) {
+            builder.defaultHeader("Authorization", "Bearer " + GitHubToken.trim());
+        }
+        
+        return builder.build();
     }
 }

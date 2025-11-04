@@ -48,13 +48,13 @@ public class JavelinController
 
         Map<String, Object>tempMap = new HashMap<>();
 
-        Set<Map<String, Object>> jdkSet       = new LinkedHashSet<>();
-        Set<Map<String, Object>> commonExtSet = new LinkedHashSet<>();
-        Set<Map<String, Object>> javaExtSet   = new LinkedHashSet<>();
-        Set<Map<String, Object>> springExtSet = new LinkedHashSet<>();
-        Set<Map<String, Object>> golangExtSet = new LinkedHashSet<>();
-        Set<Map<String, Object>> expensionSet = new LinkedHashSet<>();
-        Set<Map<String, Object>> baseSet      = new LinkedHashSet<>();
+        Set<Map<String, Object>> jdkSet        = new LinkedHashSet<>();
+        Set<Map<String, Object>> commonExtSet  = new LinkedHashSet<>();
+        Set<Map<String, Object>> javaExtSet    = new LinkedHashSet<>();
+        Set<Map<String, Object>> springExtSet  = new LinkedHashSet<>();
+        Set<Map<String, Object>> openapiExtSet = new LinkedHashSet<>();
+        Set<Map<String, Object>> expensionSet  = new LinkedHashSet<>();
+        Set<Map<String, Object>> baseSet       = new LinkedHashSet<>();
 
         String[] parts = null;
 
@@ -92,12 +92,12 @@ public class JavelinController
                         springExtSet.add(tempMap);
                         break;
 
-                    case "golang" :
+                    case "openapi" :
                         tempMap.put("category", "VS CODE 확장");
-                        tempMap.put("subcategory", "Golang");
+                        tempMap.put("subcategory", "OPENAPI");
                         tempMap.put("filename", parts[2]);
                         tempMap.put("url", "/javelin/getFile/" + fileName);
-                        golangExtSet.add(tempMap);
+                        openapiExtSet.add(tempMap);
                         break;
                 }
 
@@ -115,8 +115,8 @@ public class JavelinController
             }
             else if ( fileName.toLowerCase().contains("jdk") )
             {
-                tempMap.put("category", "Eclipse Temurin JDK");
-                tempMap.put("subcategory", JavelinConfig.getEclipseTemurin().getVersion());
+                tempMap.put("category", "Amazon Corretto JDK");
+                tempMap.put("subcategory", JavelinConfig.getAmazonCorretto().getVersion());
                 tempMap.put("filename", fileName);
                 tempMap.put("url", "/javelin/getFile/" + fileName);
                 jdkSet.add(tempMap);
@@ -156,7 +156,7 @@ public class JavelinController
         model.addAttribute("commexts", commonExtSet);
         model.addAttribute("javaexts", javaExtSet);
         model.addAttribute("springexts", springExtSet);
-        model.addAttribute("golangexts", golangExtSet);
+        model.addAttribute("openapiexts", openapiExtSet);
 
         return "index";
     }
