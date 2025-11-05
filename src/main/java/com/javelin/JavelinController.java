@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import org.springframework.core.io.Resource;
@@ -29,7 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class JavelinController
 {    
-    private final JavelinConfig JavelinConfig;
+    private final JavelinConfig javelinConfig;
 
     @GetMapping({"/", ""})
     public String showAll(Model model)
@@ -37,9 +38,9 @@ public class JavelinController
         List<String> fileNames = new ArrayList<>();
         try
         {
-            Files.walk(Paths.get(JavelinConfig.getRoot()))
+            Files.walk(Paths.get(javelinConfig.getRoot()))
                 .filter(Files::isRegularFile)
-                .forEach(path -> fileNames.add(Paths.get(JavelinConfig.getRoot()).relativize(path).toString()));
+                .forEach(path -> fileNames.add(Paths.get(javelinConfig.getRoot()).relativize(path).toString()));
         }
         catch (Exception e)
         {
@@ -94,7 +95,7 @@ public class JavelinController
 
                     case "openapi" :
                         tempMap.put("category", "VS CODE 확장");
-                        tempMap.put("subcategory", "OPENAPI");
+                        tempMap.put("subcategory", "OpenAPI");
                         tempMap.put("filename", parts[2]);
                         tempMap.put("url", "/javelin/getFile/" + fileName);
                         openapiExtSet.add(tempMap);
@@ -106,17 +107,24 @@ public class JavelinController
                     expensionSet.add(tempMap);
                 }
             }
-            else if ( fileName.toLowerCase().startsWith("vscodium") )
-            {
-                tempMap.put("category", "VS CODIUM 설치 파일");
-                tempMap.put("filename", fileName);
-                tempMap.put("url", "/javelin/getFile/" + fileName);
-                baseSet.add(tempMap);
-            }
             else if ( fileName.toLowerCase().contains("jdk") )
             {
+                // 파일명에서 버전 추출 (예: amazon-corretto-21-x64-windows-jdk.msi -> 21)
+                String version = "Unknown";
+                try {
+                    String[] fileNameParts = fileName.split("-");
+                    for (String part : fileNameParts) {
+                        if (part.matches("\\d+")) {
+                            version = part;
+                            break;
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn("JDK 파일에서 버전 추출 실패: {}", fileName);
+                }
+                
                 tempMap.put("category", "Amazon Corretto JDK");
-                tempMap.put("subcategory", JavelinConfig.getAmazonCorretto().getVersion());
+                tempMap.put("subcategory", version);
                 tempMap.put("filename", fileName);
                 tempMap.put("url", "/javelin/getFile/" + fileName);
                 jdkSet.add(tempMap);
@@ -138,6 +146,20 @@ public class JavelinController
             else if ( fileName.toLowerCase().startsWith("git") )
             {
                 tempMap.put("category", "Git 설치 파일");
+                tempMap.put("filename", fileName);
+                tempMap.put("url", "/javelin/getFile/" + fileName);
+                baseSet.add(tempMap);
+            }
+            else if ( fileName.toLowerCase().startsWith("vscodium") )
+            {
+                tempMap.put("category", "VSCodium (Visual Studio Code 기반 IDE)");
+                tempMap.put("filename", fileName);
+                tempMap.put("url", "/javelin/getFile/" + fileName);
+                baseSet.add(tempMap);
+            }
+            else if ( fileName.toLowerCase().contains("spring-tools") )
+            {
+                tempMap.put("category", "Spring Tool Suite (Eclipse 기반 IDE)");
                 tempMap.put("filename", fileName);
                 tempMap.put("url", "/javelin/getFile/" + fileName);
                 baseSet.add(tempMap);
@@ -168,9 +190,9 @@ public class JavelinController
         try
         {
             List<String> fileNames = new ArrayList<>();
-            Files.walk(Paths.get(JavelinConfig.getRoot()))
+            Files.walk(Paths.get(javelinConfig.getRoot()))
                 .filter(Files::isRegularFile)
-                .forEach(path -> fileNames.add(Paths.get(JavelinConfig.getRoot()).relativize(path).toString()));
+                .forEach(path -> fileNames.add(Paths.get(javelinConfig.getRoot()).relativize(path).toString()));
             return ResponseEntity.ok(fileNames);
         }
         catch (Exception e)
@@ -185,13 +207,13 @@ public class JavelinController
     {
         try
         {
-            Path filePath = Paths.get(JavelinConfig.getRoot()).resolve(fileName).normalize();
-            Resource resource = new UrlResource(filePath.toUri());
-            if (JavelinConfig.isDownloadComplete() && resource.exists())
+            Path filePath = Paths.get(javelinConfig.getRoot()).resolve(fileName).normalize();
+            Resource resource = new UrlResource(Objects.requireNonNull(filePath.toUri()));
+            if (resource.exists())
             {
                 return ResponseEntity.ok()
                         .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
-                        .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                        .contentType(Objects.requireNonNull(MediaType.APPLICATION_OCTET_STREAM))
                         .body(resource);
             }
             else
@@ -211,13 +233,13 @@ public class JavelinController
     {
         try
         {
-            Path filePath = Paths.get(JavelinConfig.getRoot() + JavelinConfig.getVscodium().getExtensions().getRoot() + category).resolve(fileName).normalize();
-            Resource resource = new UrlResource(filePath.toUri());
-            if (JavelinConfig.isDownloadComplete() && resource.exists())
+            Path filePath = Paths.get(javelinConfig.getRoot() + javelinConfig.getVscodium().getExtensions().getRoot() + category).resolve(fileName).normalize();
+            Resource resource = new UrlResource(Objects.requireNonNull(filePath.toUri()));
+            if (resource.exists())
             {
                 return ResponseEntity.ok()
                                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
-                                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                                .contentType(Objects.requireNonNull(MediaType.APPLICATION_OCTET_STREAM))
                                 .body(resource);
             }
             else

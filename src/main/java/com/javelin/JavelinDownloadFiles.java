@@ -14,6 +14,7 @@ import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,7 +22,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferUtils;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -46,20 +46,19 @@ public class JavelinDownloadFiles {
         String extractDownloadUrl(T response) throws Exception;
     }
 
-    //@PostConstruct
+    @PostConstruct
     public void init() {
-        javelinConfig.setDownloadComplete(false);
-
         // 디렉토리 삭제
         deleteDirectory();
 
         // 다운로드 작업 리스트 생성
         java.util.List<Mono<Void>> downloadTasks = new java.util.ArrayList<>();
-        downloadTasks.add(downloadVscodium());
         downloadTasks.add(downloadAmazonCorrettoJDK());
         downloadTasks.add(downloadApacheMaven());
         downloadTasks.add(downloadGradle());
         downloadTasks.add(downloadGit());
+        downloadTasks.add(downloadVscodium());
+        downloadTasks.add(downloadSpringToolSuite());
         downloadTasks.add(downloadExtensions());
         
         // Postman이 활성화된 경우에만 다운로드 목록에 추가
@@ -78,7 +77,6 @@ public class JavelinDownloadFiles {
                 }))
                 .then()
                 .doOnSuccess(v -> {
-                    javelinConfig.setDownloadComplete(true);
                     log.info("FINISH DOWNLOAD !!");
                 })
                 .subscribe();
@@ -107,9 +105,9 @@ public class JavelinDownloadFiles {
     private <T> Mono<Void> downloadResource(String apiUrl, ParameterizedTypeReference<T> responseType,
                                            DownloadUrlExtractor<T> urlExtractor) {
         return webClient.get()
-                .uri(apiUrl)
+                .uri(Objects.requireNonNull(apiUrl))
                 .retrieve()
-                .bodyToMono(responseType)
+                .bodyToMono(Objects.requireNonNull(responseType))
                 .flatMap(response -> {
                     try {
                         String downloadUrl = urlExtractor.extractDownloadUrl(response);
@@ -125,67 +123,31 @@ public class JavelinDownloadFiles {
                 });
     }
 
-    // Vscodium 다운로드
-    private Mono<Void> downloadVscodium() {
-        log.info("VSCODIUM 다운로드");
-        String apiUrl = javelinConfig.getVscodium().getUrl();
-
-        return downloadResource(apiUrl,
-                new ParameterizedTypeReference<List<Map<String, Object>>>() {},
-                responseList -> {
-                    if (responseList != null && !responseList.isEmpty()) {
-                        String version = javelinConfig.getVscodium().getVersion();
-                        if (version == null || version.isEmpty()) {
-                            for (Map<String, Object> tag : responseList) {
-                                String tagName = (String) tag.get("name");
-                                if (tagName != null && !tagName.contains("-") &&
-                                        !tagName.contains("beta") &&
-                                        !tagName.contains("alpha")) {
-                                    version = tagName;
-                                    break;
-                                }
-                            }
-                        }
-                        javelinConfig.getVscodium().setVersion(version);
-
-                        return new StringBuilder()
-                                .append(javelinConfig.getVscodium().getPrefix())
-                                .append(version)
-                                .append("/")
-                                .append(String.format(javelinConfig.getVscodium().getFilenamePattern(), version))
-                                .toString();
-                    }
-                    return null;
-                })
-                .onErrorResume(WebClientResponseException.class, e -> {
-                    if (e.getStatusCode().value() == 401) {
-                        log.warn("GitHub API 인증 실패 (401). VSCodium 다운로드를 건너뜁니다.");
-                    } else {
-                        log.error("VSCodium API 호출 실패: {}", e.getMessage());
-                    }
-                    return Mono.empty();
-                })
-                .onErrorResume(Exception.class, e -> {
-                    log.error("VSCodium 다운로드 중 예상치 못한 오류: {}", e.getMessage());
-                    return Mono.empty();
-                });
-    }
-
-    // Amazon Corretto JDK 다운로드
+    // Amazon Corretto JDK 다운로드 (복수 버전)
     private Mono<Void> downloadAmazonCorrettoJDK() {
-        log.info("Amazon Corretto JDK 다운로드");
+        log.info("Amazon Corretto JDK 다운로드 (복수 버전)");
 
-        // URL 템플릿에서 {version}을 실제 버전으로 치환
-        String downloadUrl = javelinConfig.getAmazonCorretto().getUrl()
-                .replace("{version}", javelinConfig.getAmazonCorretto().getVersion());
+        java.util.List<Integer> versions = javelinConfig.getAmazonCorretto().getVersions();
+        if (versions == null || versions.isEmpty()) {
+            log.warn("Amazon Corretto 버전이 설정되지 않았습니다.");
+            return Mono.empty();
+        }
 
-        log.info("Amazon Corretto 다운로드 URL: {}", downloadUrl);
-
-        return downloadFile(downloadUrl, javelinConfig.getRoot(), false)
-                .onErrorResume(Exception.class, e -> {
-                    log.error("Amazon Corretto 다운로드 중 오류: {}", e.getMessage());
-                    return Mono.empty();
-                });
+        // 각 버전별로 다운로드 작업 생성
+        return Flux.fromIterable(versions)
+                .flatMap(version -> {
+                    String downloadUrl = javelinConfig.getAmazonCorretto().getUrl()
+                            .replace("{version}", String.valueOf(version));
+                    
+                    log.info("Amazon Corretto {} 다운로드 URL: {}", version, downloadUrl);
+                    
+                    return downloadFile(downloadUrl, javelinConfig.getRoot(), false)
+                            .onErrorResume(Exception.class, e -> {
+                                log.error("Amazon Corretto {} 다운로드 중 오류: {}", version, e.getMessage());
+                                return Mono.empty();
+                            });
+                })
+                .then();
     }
 
     // Apache Maven 다운로드
@@ -199,7 +161,7 @@ public class JavelinDownloadFiles {
             versionMono = Mono.just(fixedVersion);
         } else {
             versionMono = webClient.get()
-                    .uri(javelinConfig.getApacheMaven().getUrl())
+                    .uri(Objects.requireNonNull(javelinConfig.getApacheMaven().getUrl()))
                     .retrieve()
                     .bodyToMono(new ParameterizedTypeReference<List<Map<String, Object>>>() {})
                     .map(responseList -> {
@@ -256,7 +218,7 @@ public class JavelinDownloadFiles {
             versionMono = Mono.just(fixedVersion);
         } else {
             versionMono = webClient.get()
-                    .uri(javelinConfig.getGradle().getUrl())
+                    .uri(Objects.requireNonNull(javelinConfig.getGradle().getUrl()))
                     .retrieve()
                     .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
                     .map(response -> {
@@ -293,7 +255,7 @@ public class JavelinDownloadFiles {
             versionMono = Mono.just(fixedVersion);
         } else {
             versionMono = webClient.get()
-                    .uri(javelinConfig.getGit().getUrl())
+                    .uri(Objects.requireNonNull(javelinConfig.getGit().getUrl()))
                     .retrieve()
                     .bodyToMono(new ParameterizedTypeReference<List<Map<String, Object>>>() {})
                     .map(responseList -> {
@@ -340,6 +302,80 @@ public class JavelinDownloadFiles {
             log.error("Git 다운로드 중 예상치 못한 오류: {}", e.getMessage());
             return Mono.empty();
         });
+    }
+
+    // Vscodium 다운로드
+    private Mono<Void> downloadVscodium() {
+        log.info("VSCODIUM 다운로드");
+        String apiUrl = javelinConfig.getVscodium().getUrl();
+
+        return downloadResource(apiUrl,
+                new ParameterizedTypeReference<List<Map<String, Object>>>() {},
+                responseList -> {
+                    if (responseList != null && !responseList.isEmpty()) {
+                        String version = javelinConfig.getVscodium().getVersion();
+                        if (version == null || version.isEmpty()) {
+                            for (Map<String, Object> tag : responseList) {
+                                String tagName = (String) tag.get("name");
+                                if (tagName != null && !tagName.contains("-") &&
+                                        !tagName.contains("beta") &&
+                                        !tagName.contains("alpha")) {
+                                    version = tagName;
+                                    break;
+                                }
+                            }
+                        }
+                        javelinConfig.getVscodium().setVersion(version);
+
+                        return new StringBuilder()
+                                .append(javelinConfig.getVscodium().getPrefix())
+                                .append(version)
+                                .append("/")
+                                .append(String.format(javelinConfig.getVscodium().getFilenamePattern(), version))
+                                .toString();
+                    }
+                    return null;
+                })
+                .onErrorResume(WebClientResponseException.class, e -> {
+                    if (e.getStatusCode().value() == 401) {
+                        log.warn("GitHub API 인증 실패 (401). VSCodium 다운로드를 건너뜁니다.");
+                    } else {
+                        log.error("VSCodium API 호출 실패: {}", e.getMessage());
+                    }
+                    return Mono.empty();
+                })
+                .onErrorResume(Exception.class, e -> {
+                    log.error("VSCodium 다운로드 중 예상치 못한 오류: {}", e.getMessage());
+                    return Mono.empty();
+                });
+    }
+
+    // Spring Tool Suite 다운로드
+    private Mono<Void> downloadSpringToolSuite() {
+        log.info("Spring Tool Suite 다운로드");
+
+        String stsVersion = javelinConfig.getSpringToolSuite().getStsVersion();
+        String eclipseVersion = javelinConfig.getSpringToolSuite().getEclipseVersion();
+        
+        log.info("Spring Tool Suite 버전: {}", stsVersion);
+        log.info("Eclipse 버전: {}", eclipseVersion);
+        
+        // STS 버전의 첫 번째 문자를 추출하여 STS 접두사 생성 (예: "4.32.1.RELEASE" -> "STS4")
+        String stsPrefix = "STS" + stsVersion.charAt(0);
+        
+        // 다운로드 URL 생성
+        String downloadUrl = javelinConfig.getSpringToolSuite().getUrl()
+                .replace("{sts-prefix}", stsPrefix)
+                .replace("{sts-version}", stsVersion)
+                .replace("{eclipse-version}", eclipseVersion);
+        
+        log.info("Spring Tool Suite 다운로드 URL: {}", downloadUrl);
+        
+        return downloadFile(downloadUrl, javelinConfig.getRoot(), false)
+                .onErrorResume(Exception.class, e -> {
+                    log.error("Spring Tool Suite 다운로드 중 오류: {}", e.getMessage());
+                    return Mono.empty();
+                });
     }
 
     // Postman 다운로드
@@ -409,41 +445,6 @@ public class JavelinDownloadFiles {
                     } catch (Exception e) {
                         return Mono.error(e);
                     }
-                })
-                .onErrorResume(throwable -> {
-                    // Open VSX 실패 시 VSCode Marketplace API 대체 시도
-                    String marketplaceUrl = "https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery?api-version=6.1-preview.1";
-                    String body = String.format(
-                            "{\"filters\":[{\"criteria\":[{\"filterType\":7,\"value\":\"%s.%s\"}]}],\"flags\":870}",
-                            publisher, extensionName
-                    );
-
-                    return webClient.post()
-                            .uri(marketplaceUrl)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .bodyValue(body)
-                            .retrieve()
-                            .bodyToMono(String.class)
-                            .flatMap(responseBody -> {
-                                try {
-                                    JsonNode root = objectMapper.readTree(responseBody);
-
-                                    String latestVersion = root.path("results").get(0)
-                                            .path("extensions").get(0)
-                                            .path("versions").get(0)
-                                            .path("version").asText();
-
-                                    String downloadUrl = String.format(
-                                        "https://%s.gallery.vsassets.io/_apis/public/gallery/publisher/%s/extension/%s/%s/assetbyname/Microsoft.VisualStudio.Services.VSIXPackage",
-                                        publisher, publisher, extensionName, latestVersion);
-
-                                    String targetPath = baseDir + publisher + "." + extensionName + "." + latestVersion + ".vsix";
-
-                                    return downloadFile(downloadUrl, targetPath, true);
-                                } catch (Exception e) {
-                                    return Mono.error(e);
-                                }
-                            });
                 });
     }
 
@@ -495,10 +496,10 @@ public class JavelinDownloadFiles {
             
             // 스트리밍 다운로드로 메모리 사용량 최적화
             return webClient.get()
-                .uri(decodeUrl)
+                .uri(Objects.requireNonNull(decodeUrl))
                 .retrieve()
                 .bodyToFlux(DataBuffer.class)
-                .timeout(Duration.ofMinutes(10)) // 전체 다운로드 타임아웃
+                .timeout(Duration.ofMinutes(30)) // 전체 다운로드 타임아웃을 30분으로 증가
                 .doOnNext(dataBuffer -> {
                     if (log.isDebugEnabled()) {
                         log.debug("Received DataBuffer of size: {} bytes", dataBuffer.readableByteCount());
@@ -511,7 +512,7 @@ public class JavelinDownloadFiles {
                     log.error("Error in DataBuffer flux for URL: {}", decodeUrl, e);
                 })
                 .transform(dataBufferFlux -> 
-                    DataBufferUtils.write(dataBufferFlux, finalTargetPath)
+                    DataBufferUtils.write(Objects.requireNonNull(dataBufferFlux), finalTargetPath)
                         .subscribeOn(Schedulers.boundedElastic())
                         .doOnSuccess(v -> {
                             log.info("DataBufferUtils.write completed for: {}", finalTargetPath);

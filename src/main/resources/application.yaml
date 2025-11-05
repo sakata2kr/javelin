@@ -9,6 +9,19 @@ spring:
 javelin:
   github-token: ${GITHUB_TOKEN:}  # 환경변수가 없으면 빈 문자열
   root: "download/"
+  amazon-corretto:
+    versions: [21, 25]  # 다운로드할 버전들
+    url: "https://corretto.aws/downloads/latest/amazon-corretto-{version}-x64-windows-jdk.msi"
+  apache-maven:
+    url: "https://api.github.com/repos/apache/maven/tags"
+    prefix: "https://downloads.apache.org/maven/maven-"
+#    fixed-version: "3.9.9"
+  gradle:
+    url: "https://services.gradle.org/versions/current"
+    prefix: "https://services.gradle.org/distributions/gradle-"
+  git:
+    url: "https://api.github.com/repos/git-for-windows/git/tags"
+    prefix: "https://api.github.com/repos/git-for-windows/git/releases/tags/"
   vscodium:
     url: "https://api.github.com/repos/VSCodium/vscodium/tags"
     prefix: "https://github.com/VSCodium/vscodium/releases/download/"
@@ -58,19 +71,10 @@ javelin:
         openapi:
         - publisher: "42crunch"
           extensionName: "vscode-openapi"
-  amazon-corretto:
-    version: 21  # 지원되는 버전: 8, 11, 17, 21, 22
-    url: "https://corretto.aws/downloads/latest/amazon-corretto-{version}-x64-windows-jdk.msi"
-  apache-maven:
-    url: "https://api.github.com/repos/apache/maven/tags"
-    prefix: "https://downloads.apache.org/maven/maven-"
-#    fixed-version: "3.9.9"
-  gradle:
-    url: "https://services.gradle.org/versions/current"
-    prefix: "https://services.gradle.org/distributions/gradle-"
-  git:
-    url: "https://api.github.com/repos/git-for-windows/git/tags"
-    prefix: "https://api.github.com/repos/git-for-windows/git/releases/tags/"
+  spring-tool-suite:
+    sts-version: "4.32.1.RELEASE"
+    eclipse-version: "e4.37"
+    url: "https://cdn.spring.io/spring-tools/release/{sts-prefix}/{sts-version}/dist/{eclipse-version}/spring-tools-for-eclipse-{sts-version}-{eclipse-version}.0-win32.win32.x86_64.zip"
   postman:
     enabled: false  # Postman 다운로드를 선택적으로 활성화/비활성화
     prefix: "https://dl.pstmn.io/download/version/"
