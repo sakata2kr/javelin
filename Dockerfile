@@ -1,8 +1,11 @@
 # Start with a base image containing Java runtime
 FROM amazoncorretto:25-alpine
 
+ARG BUILD_DATE
+
 # Add Author info
 LABEL maintainer="sakata2@gmail.com"
+LABEL build_date=${BUILD_DATE}
 
 # 작업 디렉토리 설정
 WORKDIR /app
