@@ -231,7 +231,7 @@ public class JavelinController
         }
     }
 
-    @GetMapping("/getFile/Extension/{category}/{fileName:.+}")
+    @GetMapping("/getFile/extension/{category}/{fileName:.+}")
     @ResponseBody
     public ResponseEntity<Resource> downloadExtensionFile(@PathVariable String category, @PathVariable String fileName)
     {

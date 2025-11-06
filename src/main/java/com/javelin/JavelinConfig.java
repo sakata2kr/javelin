@@ -56,7 +56,7 @@ public class JavelinConfig
         private String prefix;
         private String filenamePattern;
         private String version;
-        private Extension Extension;
+        private extension extension;
 
     }
 
@@ -76,7 +76,7 @@ public class JavelinConfig
     }
 
     @Data
-    public static class Extension
+    public static class extension
     {
         private String root;
         private String version;
