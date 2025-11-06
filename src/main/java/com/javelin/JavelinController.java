@@ -65,7 +65,7 @@ public class JavelinController
             parts = fileName.split("/");
             if ( parts.length > 1)
             {
-                // extensions에 대해서만 처리함
+                // Extension에 대해서만 처리함
                 switch( parts[1].toLowerCase() )
                 {
                     case "common" :
@@ -73,7 +73,7 @@ public class JavelinController
                         tempMap.put("category", "VS CODE 확장");
                         tempMap.put("subcategory", "공통");
                         tempMap.put("filename", parts[2]);
-                        tempMap.put("url", "/javelin/getFile/" + fileName);
+                        tempMap.put("url", "/getFile/" + fileName);
                         commonExtSet.add(tempMap);
                         break;
 
@@ -81,7 +81,7 @@ public class JavelinController
                         tempMap.put("category", "VS CODE 확장");
                         tempMap.put("subcategory", "Java");
                         tempMap.put("filename", parts[2]);
-                        tempMap.put("url", "/javelin/getFile/" + fileName);
+                        tempMap.put("url", "/getFile/" + fileName);
                         javaExtSet.add(tempMap);
                         break;
 
@@ -89,7 +89,7 @@ public class JavelinController
                         tempMap.put("category", "VS CODE 확장");
                         tempMap.put("subcategory", "Spring");
                         tempMap.put("filename", parts[2]);
-                        tempMap.put("url", "/javelin/getFile/" + fileName);
+                        tempMap.put("url", "/getFile/" + fileName);
                         springExtSet.add(tempMap);
                         break;
 
@@ -97,7 +97,7 @@ public class JavelinController
                         tempMap.put("category", "VS CODE 확장");
                         tempMap.put("subcategory", "OpenAPI");
                         tempMap.put("filename", parts[2]);
-                        tempMap.put("url", "/javelin/getFile/" + fileName);
+                        tempMap.put("url", "/getFile/" + fileName);
                         openapiExtSet.add(tempMap);
                         break;
                 }
@@ -126,49 +126,49 @@ public class JavelinController
                 tempMap.put("category", "Amazon Corretto JDK");
                 tempMap.put("subcategory", version);
                 tempMap.put("filename", fileName);
-                tempMap.put("url", "/javelin/getFile/" + fileName);
+                tempMap.put("url", "/getFile/" + fileName);
                 jdkSet.add(tempMap);
             }
             else if ( fileName.toLowerCase().startsWith("apache-maven") )
             {
                 tempMap.put("category", "Apache Maven");
                 tempMap.put("filename", fileName);
-                tempMap.put("url", "/javelin/getFile/" + fileName);
+                tempMap.put("url", "/getFile/" + fileName);
                 baseSet.add(tempMap);
             }
             else if ( fileName.toLowerCase().startsWith("gradle") )
             {
                 tempMap.put("category", "Gradle");
                 tempMap.put("filename", fileName);
-                tempMap.put("url", "/javelin/getFile/" + fileName);
+                tempMap.put("url", "/getFile/" + fileName);
                 baseSet.add(tempMap);
             }
             else if ( fileName.toLowerCase().startsWith("git") )
             {
                 tempMap.put("category", "Git 설치 파일");
                 tempMap.put("filename", fileName);
-                tempMap.put("url", "/javelin/getFile/" + fileName);
+                tempMap.put("url", "/getFile/" + fileName);
                 baseSet.add(tempMap);
             }
             else if ( fileName.toLowerCase().startsWith("vscodium") )
             {
                 tempMap.put("category", "VSCodium (Visual Studio Code 기반 IDE)");
                 tempMap.put("filename", fileName);
-                tempMap.put("url", "/javelin/getFile/" + fileName);
+                tempMap.put("url", "/getFile/" + fileName);
                 baseSet.add(tempMap);
             }
             else if ( fileName.toLowerCase().contains("spring-tools") )
             {
                 tempMap.put("category", "Spring Tool Suite (Eclipse 기반 IDE)");
                 tempMap.put("filename", fileName);
-                tempMap.put("url", "/javelin/getFile/" + fileName);
+                tempMap.put("url", "/getFile/" + fileName);
                 baseSet.add(tempMap);
             }
             else if ( fileName.toLowerCase().startsWith("postman") )
             {
                 tempMap.put("category", "Postman 설치 파일");
                 tempMap.put("filename", fileName);
-                tempMap.put("url", "/javelin/getFile/" + fileName);
+                tempMap.put("url", "/getFile/" + fileName);
                 baseSet.add(tempMap);
             }
         }
@@ -211,44 +211,51 @@ public class JavelinController
             Resource resource = new UrlResource(Objects.requireNonNull(filePath.toUri()));
             if (resource.exists())
             {
+                // 파일명만 추출 (경로 제외)
+                String downloadFileName = Paths.get(fileName).getFileName().toString();
                 return ResponseEntity.ok()
-                        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
+                        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + downloadFileName + "\"")
                         .contentType(Objects.requireNonNull(MediaType.APPLICATION_OCTET_STREAM))
                         .body(resource);
             }
             else
             {
+                log.error("파일을 찾을 수 없음: {}", filePath.toAbsolutePath());
                 return ResponseEntity.status(404).body(null);
             }
         }
         catch (Exception e)
         {
+            log.error("파일 다운로드 중 오류 발생: {}", e.getMessage(), e);
             return ResponseEntity.status(500).body(null);
         }
     }
 
-    @GetMapping("/getFile/extensions/{category}/{fileName:.+}")
+    @GetMapping("/getFile/Extension/{category}/{fileName:.+}")
     @ResponseBody
-    public ResponseEntity<Resource> downloadExtensionsFile(@PathVariable String category, @PathVariable String fileName)
+    public ResponseEntity<Resource> downloadExtensionFile(@PathVariable String category, @PathVariable String fileName)
     {
         try
         {
-            Path filePath = Paths.get(javelinConfig.getDownload().getPath() + javelinConfig.getVscodium().getExtensions().getRoot() + category).resolve(fileName).normalize();
+            Path filePath = Paths.get(javelinConfig.getDownload().getPath() + javelinConfig.getVscodium().getExtension().getRoot() + category).resolve(fileName).normalize();
             Resource resource = new UrlResource(Objects.requireNonNull(filePath.toUri()));
             if (resource.exists())
             {
+                String downloadFileName = Paths.get(fileName).getFileName().toString();
                 return ResponseEntity.ok()
-                                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
+                                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + downloadFileName + "\"")
                                 .contentType(Objects.requireNonNull(MediaType.APPLICATION_OCTET_STREAM))
                                 .body(resource);
             }
             else
             {
+                log.error("파일을 찾을 수 없음: {}", filePath.toAbsolutePath());
                 return ResponseEntity.status(404).body(null);
             }
         }
         catch (Exception e)
         {
+            log.error("파일 다운로드 중 오류 발생: {}", e.getMessage(), e);
             return ResponseEntity.status(500).body(null);
         }
     }

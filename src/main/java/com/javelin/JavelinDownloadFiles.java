@@ -66,7 +66,7 @@ public class JavelinDownloadFiles {
         downloadTasks.add(downloadGit());
         downloadTasks.add(downloadVscodium());
         downloadTasks.add(downloadSpringToolSuite());
-        downloadTasks.add(downloadExtensions());
+        downloadTasks.add(downloadExtension());
         
         // Postman이 활성화된 경우에만 다운로드 목록에 추가
         if (javelinConfig.getPostman().isEnabled()) {
@@ -396,11 +396,11 @@ public class JavelinDownloadFiles {
         return downloadFile(downloadUrl, javelinConfig.getDownload().getPath(), false);
     }
 
-    // Extensions 다운로드
-    private Mono<Void> downloadExtensions() {
-        log.info("Extensions 다운로드");
+    // Extension 다운로드
+    private Mono<Void> downloadExtension() {
+        log.info("Extension 다운로드");
 
-        String extensionBasePath = javelinConfig.getVscodium().getExtensions().getClass().getSimpleName();
+        String extensionBasePath = javelinConfig.getVscodium().getExtension().getClass().getSimpleName();
         Path extensionRootPath = Paths.get(javelinConfig.getDownload().getPath(), extensionBasePath);
 
         return Mono.fromCallable(() -> {
@@ -409,7 +409,7 @@ public class JavelinDownloadFiles {
         })
         .subscribeOn(Schedulers.boundedElastic())
         .flatMap(extensionRoot -> 
-            Flux.fromIterable(javelinConfig.getVscodium().getExtensions().getCategory().entrySet())
+            Flux.fromIterable(javelinConfig.getVscodium().getExtension().getCategory().entrySet())
                 .flatMap(entry -> {
                     String categoryPath = extensionRoot + "/" + entry.getKey();
                     try {
@@ -456,7 +456,7 @@ public class JavelinDownloadFiles {
     }
 
     // 파일 다운로드 및 저장 - hang 방지를 위한 개선된 버전
-    private Mono<Void> downloadFile(String url, String targetPath, Boolean isExtensions) {
+    private Mono<Void> downloadFile(String url, String targetPath, Boolean isExtension) {
         String decodeUrl = URLDecoder.decode(url, StandardCharsets.UTF_8);
         
         log.info("DOWNLOAD URL : {}", decodeUrl);
@@ -466,7 +466,7 @@ public class JavelinDownloadFiles {
             // 파일명 결정 로직을 먼저 처리
             String filename = null;
             
-            if (isExtensions) {
+            if (isExtension) {
                 filename = Paths.get(targetPath).getFileName().toString();
             } else {
                 int lastSlashIndex = decodeUrl.lastIndexOf("/");
@@ -487,7 +487,7 @@ public class JavelinDownloadFiles {
                 throw new RuntimeException("Cannot determine filename from URL: " + decodeUrl);
             }
             
-            Path finalTargetPath = isExtensions ? Paths.get(targetPath) : Paths.get(targetPath, filename);
+            Path finalTargetPath = isExtension ? Paths.get(targetPath) : Paths.get(targetPath, filename);
             
             try {
                 Files.createDirectories(finalTargetPath.getParent());

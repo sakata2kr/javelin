@@ -28,8 +28,8 @@ javelin:
     url: "https://api.github.com/repos/VSCodium/vscodium/tags"
     prefix: "https://github.com/VSCodium/vscodium/releases/download/"
     filename-pattern: "VSCodiumSetup-x64-%s.exe"
-    extensions:
-      root: "extensions/"
+    extension:
+      root: "extension/"
       category:
         common:
         - publisher: "ms-ceintl"

@@ -56,7 +56,7 @@ public class JavelinConfig
         private String prefix;
         private String filenamePattern;
         private String version;
-        private Extension extensions;
+        private Extension Extension;
 
     }
 
