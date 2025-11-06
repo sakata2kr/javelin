@@ -24,7 +24,7 @@ import java.util.Map;
 public class JavelinConfig
 {
     private String GitHubToken;
-    private String root;
+    private Download download;
     private Vscodium vscodium;
     private AmazonCorretto amazonCorretto;
     private Urls apacheMaven;
@@ -32,16 +32,21 @@ public class JavelinConfig
     private Urls git;
     private Urls postman;
     private SpringToolSuite springToolSuite;
-    private boolean downloadComplete = false;
 
-    public void setRoot(String root)
+    @Data
+    public static class Download
     {
-        if (!root.endsWith("/") )
+        private boolean enable = true;  // 기본값은 true
+        private String path = "download/";  // 기본 경로
+        
+        public void setPath(String path)
         {
-            root += "/";
+            if (!path.endsWith("/") )
+            {
+                path += "/";
+            }
+            this.path = path;
         }
-
-        this.root = root;
     }
 
     @Data

@@ -47,6 +47,14 @@ public class JavelinDownloadFiles {
 
     @PostConstruct
     public void init() {
+        // 다운로드 기능이 비활성화된 경우 실행하지 않음
+        if (!javelinConfig.getDownload().isEnable()) {
+            log.info("다운로드 기능이 비활성화되어 있습니다. (javelin.download.enable=false)");
+            return;
+        }
+        
+        log.info("다운로드 기능이 활성화되어 있습니다. 다운로드를 시작합니다.");
+        
         // 디렉토리 삭제
         deleteDirectory();
 
@@ -83,7 +91,7 @@ public class JavelinDownloadFiles {
 
     private void deleteDirectory()
     {
-        Path dirPath = Paths.get(javelinConfig.getRoot());
+        Path dirPath = Paths.get(javelinConfig.getDownload().getPath());
         try
         {
             if (Files.exists(dirPath))
@@ -114,7 +122,7 @@ public class JavelinDownloadFiles {
                             log.warn("No download URL extracted from API response: {}", apiUrl);
                             return Mono.empty();
                         }
-                        return downloadFile(downloadUrl, javelinConfig.getRoot(), false);
+                        return downloadFile(downloadUrl, javelinConfig.getDownload().getPath(), false);
                     } catch (Exception e) {
                         log.error("Error extracting download URL from API response", e);
                         return Mono.error(e);
@@ -140,7 +148,7 @@ public class JavelinDownloadFiles {
                     
                     log.info("Amazon Corretto {} 다운로드 URL: {}", version, downloadUrl);
                     
-                    return downloadFile(downloadUrl, javelinConfig.getRoot(), false)
+                    return downloadFile(downloadUrl, javelinConfig.getDownload().getPath(), false)
                             .onErrorResume(Exception.class, e -> {
                                 log.error("Amazon Corretto {} 다운로드 중 오류: {}", version, e.getMessage());
                                 return Mono.empty();
@@ -190,7 +198,7 @@ public class JavelinDownloadFiles {
                     .append(latestVersion).append("-bin.tar.gz")
                     .toString();
 
-            return downloadFile(downloadUrl, javelinConfig.getRoot(), false);
+            return downloadFile(downloadUrl, javelinConfig.getDownload().getPath(), false);
         })
         .onErrorResume(WebClientResponseException.class, e -> {
             if (e.getStatusCode().value() == 401) {
@@ -239,7 +247,7 @@ public class JavelinDownloadFiles {
                     .append(latestVersion).append("-bin.zip")
                     .toString();
 
-            return downloadFile(downloadUrl, javelinConfig.getRoot(), false);
+            return downloadFile(downloadUrl, javelinConfig.getDownload().getPath(), false);
         });
     }
 
@@ -282,7 +290,7 @@ public class JavelinDownloadFiles {
                             if (assets != null && assets.containsKey("browser_download_url")
                                     && assets.get("browser_download_url").toString().contains("64-bit.exe")) {
                                 String downloadUrl = assets.get("browser_download_url").toString();
-                                return downloadFile(downloadUrl, javelinConfig.getRoot(), false);
+                                return downloadFile(downloadUrl, javelinConfig.getDownload().getPath(), false);
                             }
                         }
                     }
@@ -370,7 +378,7 @@ public class JavelinDownloadFiles {
         
         log.info("Spring Tool Suite 다운로드 URL: {}", downloadUrl);
         
-        return downloadFile(downloadUrl, javelinConfig.getRoot(), false)
+        return downloadFile(downloadUrl, javelinConfig.getDownload().getPath(), false)
                 .onErrorResume(Exception.class, e -> {
                     log.error("Spring Tool Suite 다운로드 중 오류: {}", e.getMessage());
                     return Mono.empty();
@@ -385,7 +393,7 @@ public class JavelinDownloadFiles {
                 + javelinConfig.getPostman().getFixedVersion()
                 + javelinConfig.getPostman().getSuffix();
 
-        return downloadFile(downloadUrl, javelinConfig.getRoot(), false);
+        return downloadFile(downloadUrl, javelinConfig.getDownload().getPath(), false);
     }
 
     // Extensions 다운로드
@@ -393,7 +401,7 @@ public class JavelinDownloadFiles {
         log.info("Extensions 다운로드");
 
         String extensionBasePath = javelinConfig.getVscodium().getExtensions().getClass().getSimpleName();
-        Path extensionRootPath = Paths.get(javelinConfig.getRoot(), extensionBasePath);
+        Path extensionRootPath = Paths.get(javelinConfig.getDownload().getPath(), extensionBasePath);
 
         return Mono.fromCallable(() -> {
             Files.createDirectories(extensionRootPath);

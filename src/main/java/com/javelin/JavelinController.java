@@ -38,9 +38,9 @@ public class JavelinController
         List<String> fileNames = new ArrayList<>();
         try
         {
-            Files.walk(Paths.get(javelinConfig.getRoot()))
+            Files.walk(Paths.get(javelinConfig.getDownload().getPath()))
                 .filter(Files::isRegularFile)
-                .forEach(path -> fileNames.add(Paths.get(javelinConfig.getRoot()).relativize(path).toString()));
+                .forEach(path -> fileNames.add(Paths.get(javelinConfig.getDownload().getPath()).relativize(path).toString()));
         }
         catch (Exception e)
         {
@@ -190,9 +190,9 @@ public class JavelinController
         try
         {
             List<String> fileNames = new ArrayList<>();
-            Files.walk(Paths.get(javelinConfig.getRoot()))
+            Files.walk(Paths.get(javelinConfig.getDownload().getPath()))
                 .filter(Files::isRegularFile)
-                .forEach(path -> fileNames.add(Paths.get(javelinConfig.getRoot()).relativize(path).toString()));
+                .forEach(path -> fileNames.add(Paths.get(javelinConfig.getDownload().getPath()).relativize(path).toString()));
             return ResponseEntity.ok(fileNames);
         }
         catch (Exception e)
@@ -207,7 +207,7 @@ public class JavelinController
     {
         try
         {
-            Path filePath = Paths.get(javelinConfig.getRoot()).resolve(fileName).normalize();
+            Path filePath = Paths.get(javelinConfig.getDownload().getPath()).resolve(fileName).normalize();
             Resource resource = new UrlResource(Objects.requireNonNull(filePath.toUri()));
             if (resource.exists())
             {
@@ -233,7 +233,7 @@ public class JavelinController
     {
         try
         {
-            Path filePath = Paths.get(javelinConfig.getRoot() + javelinConfig.getVscodium().getExtensions().getRoot() + category).resolve(fileName).normalize();
+            Path filePath = Paths.get(javelinConfig.getDownload().getPath() + javelinConfig.getVscodium().getExtensions().getRoot() + category).resolve(fileName).normalize();
             Resource resource = new UrlResource(Objects.requireNonNull(filePath.toUri()));
             if (resource.exists())
             {

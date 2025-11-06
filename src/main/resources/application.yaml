@@ -8,7 +8,9 @@ spring:
 
 javelin:
   github-token: ${GITHUB_TOKEN:}  # 환경변수가 없으면 빈 문자열
-  root: "download/"
+  download:
+    enable: false  # 다운로드 기능 활성화/비활성화
+    path: "download/"  # 다운로드 경로
   amazon-corretto:
     versions: [21, 25]  # 다운로드할 버전들
     url: "https://corretto.aws/downloads/latest/amazon-corretto-{version}-x64-windows-jdk.msi"
