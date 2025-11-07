@@ -1,0 +1,88 @@
+spring:
+  thymeleaf:
+    cache: false
+    enabled: true
+    check-template-location: true
+    prefix: classpath:/templates/
+    suffix: .html
+
+javelin:
+  github-token: ${GITHUB_TOKEN:}  # 환경변수가 없으면 빈 문자열
+  download:
+    enable: false  # 다운로드 기능 활성화/비활성화
+    path: "download/"  # 다운로드 경로
+  amazon-corretto:
+    versions: [21, 25]  # 다운로드할 버전들
+    url: "https://corretto.aws/downloads/latest/amazon-corretto-{version}-x64-windows-jdk.msi"
+  apache-maven:
+    url: "https://api.github.com/repos/apache/maven/tags"
+    prefix: "https://downloads.apache.org/maven/maven-"
+#    fixed-version: "3.9.9"
+  gradle:
+    url: "https://services.gradle.org/versions/current"
+    prefix: "https://services.gradle.org/distributions/gradle-"
+  git:
+    url: "https://api.github.com/repos/git-for-windows/git/tags"
+    prefix: "https://api.github.com/repos/git-for-windows/git/releases/tags/"
+  vscodium:
+    url: "https://api.github.com/repos/VSCodium/vscodium/tags"
+    prefix: "https://github.com/VSCodium/vscodium/releases/download/"
+    filename-pattern: "VSCodiumSetup-x64-%s.exe"
+    extension:
+      root: "extension/"
+      category:
+        common:
+        - publisher: "ms-ceintl"
+          extensionName: "vscode-language-pack-ko"
+        - publisher: "esbenp"
+          extensionName: "prettier-vscode"
+        - publisher: "redhat"
+          extensionName: "vscode-xml"
+        - publisher: "redhat"
+          extensionName: "vscode-yaml"
+        - publisher: "pkief"
+          extensionName: "material-icon-theme"
+        - publisher: "tyriar"
+          extensionName: "sort-lines"
+        - publisher: "usernamehw"
+          extensionName: "remove-empty-lines"
+        java:
+        - publisher: "redhat"
+          extensionName: "java"
+        - publisher: "vscjava"
+          extensionName: "vscode-java-debug"
+        - publisher: "vscjava"
+          extensionName: "vscode-java-dependency"
+        - publisher: "vscjava"
+          extensionName: "vscode-java-pack"
+        - publisher: "vscjava"
+          extensionName: "vscode-java-test"
+        - publisher: "vscjava"
+          extensionName: "vscode-maven"
+        - publisher: "vscjava"
+          extensionName: "vscode-gradle"
+        spring:
+        - publisher: "vmware"
+          extensionName: "vscode-boot-dev-pack"
+        - publisher: "vmware"
+          extensionName: "vscode-spring-boot"
+        - publisher: "vscjava"
+          extensionName: "vscode-spring-boot-dashboard"
+        - publisher: "vscjava"
+          extensionName: "vscode-spring-initializr"
+        openapi:
+        - publisher: "42crunch"
+          extensionName: "vscode-openapi"
+  spring-tool-suite:
+    sts-version: "4.32.1.RELEASE"
+    eclipse-version: "e4.37"
+    url: "https://cdn.spring.io/spring-tools/release/{sts-prefix}/{sts-version}/dist/{eclipse-version}/spring-tools-for-eclipse-{sts-version}-{eclipse-version}.0-win32.win32.x86_64.zip"
+  postman:
+    enabled: false  # Postman 다운로드를 선택적으로 활성화/비활성화
+    prefix: "https://dl.pstmn.io/download/version/"
+    fixed-version: "9.31.32"
+    suffix: "/windows"
+
+logging:
+  level:
+    root: WARN

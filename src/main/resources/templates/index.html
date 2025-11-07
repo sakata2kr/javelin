@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org"
+    xmlns:c="http://www.thymeleaf.org/extras/thymeleaf-extras-java8">
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title>개발 환경 세팅을 위한 파일 다운로드</title>
+    <meta name="description" content="" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <style>
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            border: 1px solid gray; /* 회색 바탕선 추가 */
+        }
+        th, td {
+            border: 1px solid gray; /* 회색 바탕선 추가 */
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: black; /* 검은색 바탕 */
+            color: white; /* 흰색 글자색 */
+        }
+        td {
+            background-color: white; /* 흰 바탕 */
+            color: black; /* 검은색 글자색 */
+            text-align: left; /* 3번째 td 태그 우측 정렬 */
+            vertical-align: middle; /* 3번째 td 태그 수직 정렬 */
+        }
+        .center {
+            text-align: center; /* 맨 처음 두 td 태그 수평 정렬 */
+            vertical-align: middle; /* 맨 처음 두 td 태그 수직 정렬 */
+        }
+    </style>
+</head>
+<body>
+    <h1>개발 환경 설정 관련 파일 목록</h1>
+    <table>
+        <thead>
+            <tr>
+                <th colspan=2 class="center">분류</th>
+                <th class="center">파일명</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr th:each="jdk, status : ${jdkfiles}">
+                <td th:text="${jdk.category}" th:rowspan="${#lists.size(jdkfiles)}" th:if="${status.first}" class="center"></td>
+                <td th:text="${jdk.subcategory}" class="center"></td>
+                <td><a th:href="@{${jdk.url}}" th:text="${jdk.filename}"></a></td>
+            </tr>
+            <tr th:each="base : ${basefiles}">
+                <td colspan="2" th:text="${base.category}" class="center"></td>
+                <td><a th:href="@{${base.url}}" th:text="${base.filename}"></a></td>
+            </tr>
+            <tr th:each="ext, status : ${commexts}">
+                <td th:text="${ext.category}" th:rowspan="${#lists.size(commexts) + #lists.size(javaexts) + #lists.size(springexts) + #lists.size(openapiexts)}" th:if="${status.first}" class="center"></td>
+                <td th:text="${ext.subcategory}" th:rowspan="${#lists.size(commexts)}" th:if="${status.first}" class="center"></td>
+                <td><a th:href="@{${ext.url}}" th:text="${ext.filename}"></a></td>
+            </tr>
+            <tr th:each="ext, status : ${javaexts}">
+                <td th:text="${ext.subcategory}" th:rowspan="${#lists.size(javaexts)}" th:if="${status.first}" class="center"></td>
+                <td><a th:href="@{${ext.url}}" th:text="${ext.filename}"></a></td>
+            </tr>
+            <tr th:each="ext, status : ${springexts}">
+                <td th:text="${ext.subcategory}" th:rowspan="${#lists.size(springexts)}" th:if="${status.first}" class="center"></td>
+                <td><a th:href="@{${ext.url}}" th:text="${ext.filename}"></a></td>
+            </tr>
+            <tr th:each="ext, status : ${openapiexts}">
+                <td th:text="${ext.subcategory}" th:rowspan="${#lists.size(openapiexts)}" th:if="${status.first}" class="center"></td>
+                <td><a th:href="@{${ext.url}}" th:text="${ext.filename}"></a></td>
+            </tr>
+        </tbody>
+    </table>
+</body>
+</html>
