@@ -1,565 +1,379 @@
 package com.javelin;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.ClientHttpResponse;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.stereotype.Component;
+import org.springframework.util.StopWatch;
+import org.springframework.util.StreamUtils;
+import org.springframework.web.client.RequestCallback;
+import org.springframework.web.client.ResponseExtractor;
+import org.springframework.web.client.RestTemplate;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.annotation.PostConstruct;
-
-import java.io.File;
-import java.io.IOException;
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.time.Duration;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.core.io.buffer.DataBuffer;
-import org.springframework.core.io.buffer.DataBufferUtils;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
-
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@EnableScheduling
 public class JavelinDownloadFiles
 {
-    private final WebClient webClient;
-    private final JavelinConfig javelinConfig;
-    private final ObjectMapper objectMapper = new ObjectMapper();  // ObjectMapper 재사용
+    private static final String ExtensionPath = "extensions/";
+    private RestTemplate restTemplate = new RestTemplate();
+
+    private final JavelinConfig JavelinConfig;
 
     @PostConstruct
-    public void init()
+    public void init() throws Exception
     {
-        // 다운로드 기능이 비활성화된 경우 실행하지 않음
-        if (!javelinConfig.getDownload().isEnable())
-        {
-            log.info("다운로드 기능이 비활성화되어 있습니다. (javelin.download.enable=false)");
-            return;
-        }
-        else if (javelinConfig.getDownload().isClear())
-        {
-            log.warn("다운로드 파일 초기화 기능이 활성화 되어 있습니다. (javelin.download.clear=true)");
-
-            Path dirPath = Paths.get(javelinConfig.getDownload().getPath());
-
-            try
-            {
-                if (Files.exists(dirPath))
-                {
-                    Files.walk(dirPath)
-                        .map(Path::toFile)
-                        .sorted((o1, o2) -> -o1.compareTo(o2))
-                        .forEach(File::delete);
-                }
-            }
-            catch (Exception e)
-            {
-                log.error("다운로드 디렉토리 초기화 실패");
-            }
-        }
+        // 컨테이너가 시작될 때마다 실행할 작업을 여기에 작성합니다.
+        DownloadJavelin();
+        //JavelinConfig.setDownloadComplete(true);
     }
 
-    // 매일 오전 2시에 실행 (cron: 초 분 시 일 월 요일)
-    @Scheduled(fixedDelay=200000)
-    private void executeDownload()
+    @SuppressWarnings({ "unchecked", "null", "rawtypes" })
+    public void DownloadJavelin() throws Exception
     {
-        // 다운로드 기능이 비활성화된 경우 실행하지 않음
-        if (!javelinConfig.getDownload().isEnable()) {
-            log.info("다운로드 기능이 비활성화되어 있습니다. (javelin.download.enable=false)");
-            return;
+        Map<String, Object> response = null;
+        List<Map<String, Object>> responseList = null;
+        String downloadUrl = null;
+        String downloadUrlPrefix = null;
+        String latestVersion = null;
+
+        StopWatch stopWatch = new StopWatch("파일 다운로드 시작");
+
+        JavelinConfig.setDownloadComplete(false);
+
+        stopWatch.start("디렉토리 삭제 시작");
+        // 상위 디렉토리 삭제
+        Path dirPath = Paths.get(JavelinConfig.getRoot());
+
+        if (Files.exists(dirPath))
+        {
+            Files.walk(dirPath).map(Path::toFile).sorted((o1, o2) -> -o1.compareTo(o2)).forEach(File::delete);
         }
 
-        // 다운로드 작업 리스트 생성
-        java.util.List<Mono<Void>> downloadTasks = new java.util.ArrayList<>();
-        downloadTasks.add(downloadAmazonCorrettoJDK());
-        downloadTasks.add(downloadApacheMaven());
-        downloadTasks.add(downloadGradle());
-        downloadTasks.add(downloadGit());
-        downloadTasks.add(downloadVscode());
-        downloadTasks.add(downloadSpringToolSuite());
-        downloadTasks.add(downloadExtension());
-        
-        // Postman이 활성화된 경우에만 다운로드 목록에 추가
-        if (javelinConfig.getPostman().isEnabled()) {
-            log.info("Postman 다운로드가 활성화되어 있습니다.");
-            downloadTasks.add(downloadPostman());
-        } else {
-            log.info("Postman 다운로드가 비활성화되어 있습니다.");
+        stopWatch.stop();
+
+        stopWatch.start("VSCODE 다운로드");
+
+        // VSCODE 다운로드
+        response = restTemplate.getForObject(JavelinConfig.getVscode().getUrl(), Map.class);
+
+        if ( response != null && response.containsKey("name") && response.containsKey("url") )
+        {
+            JavelinConfig.getVscode().setVersion(response.get("name").toString());
+            downloadUrl = response.get("url").toString();
+
+            downloadFile(downloadUrl, JavelinConfig.getRoot(), false);
         }
-        
-        // 다운로드 작업을 순차적으로 하나씩 실행 (concurrency = 1)
-        Flux.fromIterable(downloadTasks)
-                .concatMap(mono -> mono
-                    .doOnError(e -> log.error("Download error on task", e))
-                    .onErrorResume(e -> {
-                        log.warn("작업 실패, 다음 작업을 계속 진행합니다.");
-                        return Mono.empty();
-                    })
+
+        stopWatch.stop();
+        stopWatch.start("JDK 다운로드");
+
+        // JDK 다운로드
+        for ( String jdkVersion : JavelinConfig.getMicrosoftJdk() )
+        {
+            downloadUrl = "https://aka.ms/download-jdk/microsoft-jdk-" + jdkVersion + "-windows-x64.zip";
+            downloadFile(downloadUrl, JavelinConfig.getRoot(), false);
+        }
+
+        stopWatch.stop();
+        stopWatch.start("apache maven 다운로드");
+
+        // apache maven 다운로드
+        latestVersion = JavelinConfig.getApacheMaven().getFixedVersion();
+        if ( latestVersion == null || latestVersion.isEmpty() )
+        {
+            responseList = restTemplate.getForObject(JavelinConfig.getApacheMaven().getUrl(), List.class);
+
+            for (Map<String, Object> tempRes : responseList)
+            {
+                if ( tempRes != null && tempRes.containsKey("name")
+                  && tempRes.get("name").toString().startsWith("maven-")
+                  && !tempRes.get("name").toString().contains("alpha")
+                  && !tempRes.get("name").toString().contains("beta")
                 )
-                .then()
-                .doOnSuccess(v -> {
-                    log.info("FINISH DOWNLOAD !!");
-                })
-                .doOnError(e -> {
-                    log.error("전체 다운로드 프로세스 오류", e);
-                })
-                .subscribe();
-    }
-
-    // Amazon Corretto JDK 다운로드 (복수 버전)
-    private Mono<Void> downloadAmazonCorrettoJDK() {
-        log.info("Amazon Corretto JDK 다운로드 (복수 버전)");
-
-        java.util.List<Integer> versions = javelinConfig.getAmazonCorretto().getVersions();
-        if (versions == null || versions.isEmpty()) {
-            log.warn("Amazon Corretto 버전이 설정되지 않았습니다.");
-            return Mono.empty();
+                {
+                    latestVersion = tempRes.get("name").toString().replace("maven-", "");
+                    break;
+                }
+            }
         }
 
-        // 각 버전별로 순차적으로 다운로드 (concatMap 사용)
-        return Flux.fromIterable(versions)
-                .concatMap(version -> {
-                    String downloadUrl = javelinConfig.getAmazonCorretto().getUrl()
-                            .replace("{version}", String.valueOf(version));
-                    
-                    log.info("Amazon Corretto {} 다운로드 시작", version);
-                    log.info("Amazon Corretto {} 다운로드 URL: {}", version, downloadUrl);
-                    
-                    return downloadFile(downloadUrl, javelinConfig.getDownload().getPath(), false)
-                            .doOnSuccess(v -> log.info("Amazon Corretto {} 다운로드 완료", version))
-                            .onErrorResume(Exception.class, e -> {
-                                log.error("Amazon Corretto {} 다운로드 중 오류: {}", version, e.getMessage());
-                                return Mono.empty();
-                            });
-                })
-                .then();
-    }
+        downloadUrl = new StringBuilder().append(JavelinConfig.getApacheMaven().getPrefix())
+                                        .append(latestVersion.substring(0, 1)).append("/")
+                                        .append(latestVersion).append("/binaries/apache-maven-")
+                                        .append(latestVersion).append("-bin.tar.gz")
+                                        .toString();
 
-    // Apache Maven 다운로드
-    private Mono<Void> downloadApacheMaven() {
-        log.info("Apache Maven 다운로드");
+        downloadFile(downloadUrl, JavelinConfig.getRoot(), false);
 
-        String fixedVersion = javelinConfig.getApacheMaven().getFixedVersion();
+        stopWatch.stop();
+        stopWatch.start("Gradle 다운로드");
 
-        Mono<String> versionMono;
-        if (fixedVersion != null && !fixedVersion.isEmpty()) {
-            versionMono = Mono.just(fixedVersion);
-        } else {
-            versionMono = webClient.get()
-                    .uri(Objects.requireNonNull(javelinConfig.getApacheMaven().getUrl()))
-                    .retrieve()
-                    .bodyToMono(new ParameterizedTypeReference<List<Map<String, Object>>>() {})
-                    .map(responseList -> {
-                        for (Map<String, Object> tempRes : responseList) {
-                            if (tempRes != null && tempRes.containsKey("name")
-                                    && tempRes.get("name").toString().startsWith("maven-")
-                                    && !tempRes.get("name").toString().contains("alpha")
-                                    && !tempRes.get("name").toString().contains("beta")
-                                    && !tempRes.get("name").toString().contains("rc")) {
-                                return tempRes.get("name").toString().replace("maven-", "");
-                            }
-                        }
-                        return "";
-                    });
+        // Gradle 다운로드
+        latestVersion = JavelinConfig.getGradle().getFixedVersion();
+
+        if ( latestVersion == null || latestVersion.isEmpty() )
+        {
+            response = restTemplate.getForObject(JavelinConfig.getGradle().getUrl(), Map.class);
+            if ( response != null && response.containsKey("version") )
+            {
+                latestVersion = response.get("version").toString();
+            }
         }
 
-        return versionMono.flatMap(latestVersion -> {
-            if (latestVersion == null || latestVersion.isEmpty()) {
-                log.warn("Apache Maven latest version not found");
-                return Mono.empty();
+        downloadUrl = new StringBuilder().append(JavelinConfig.getGradle().getPrefix())
+                      .append(latestVersion).append("-bin.zip")
+                      .toString();
+
+        downloadFile(downloadUrl, JavelinConfig.getRoot(), false);
+
+        stopWatch.stop();
+        stopWatch.start("Git 다운로드");
+
+        // Git 다운로드
+        latestVersion = JavelinConfig.getGit().getFixedVersion();
+
+        if ( latestVersion == null || latestVersion.isEmpty() )
+        {
+            responseList = restTemplate.getForObject(JavelinConfig.getGit().getUrl(), List.class);
+            for (Map<String, Object> tempRes : responseList)
+            {
+                if ( tempRes != null && tempRes.containsKey("name") && !tempRes.get("name").toString().contains("-rc") )
+                {
+                    latestVersion = tempRes.get("name").toString();
+                    break;
+                }
             }
+        }
+        Map<String, Object> subResponse = restTemplate.getForObject(JavelinConfig.getGit().getPrefix() + latestVersion, Map.class);
 
-            String downloadUrl = new StringBuilder()
-                    .append(javelinConfig.getApacheMaven().getPrefix())
-                    .append(latestVersion.substring(0, 1)).append("/")
-                    .append(latestVersion).append("/binaries/apache-maven-")
-                    .append(latestVersion).append("-bin.tar.gz")
-                    .toString();
-
-            return downloadFile(downloadUrl, javelinConfig.getDownload().getPath(), false);
-        })
-        .onErrorResume(WebClientResponseException.class, e -> {
-            if (e.getStatusCode().value() == 401) {
-                log.warn("GitHub API 인증 실패 (401). Apache Maven 다운로드를 건너뜁니다.");
-            } else {
-                log.error("Apache Maven API 호출 실패: {}", e.getMessage());
-            }
-            return Mono.empty();
-        })
-        .onErrorResume(Exception.class, e -> {
-            log.error("Apache Maven 다운로드 중 예상치 못한 오류: {}", e.getMessage());
-            return Mono.empty();
-        });
-    }
-
-    // Gradle 다운로드
-    private Mono<Void> downloadGradle() {
-        log.info("Gradle 다운로드");
-
-        String fixedVersion = javelinConfig.getGradle().getFixedVersion();
-
-        Mono<String> versionMono;
-        if (fixedVersion != null && !fixedVersion.isEmpty()) {
-            versionMono = Mono.just(fixedVersion);
-        } else {
-            versionMono = webClient.get()
-                    .uri(Objects.requireNonNull(javelinConfig.getGradle().getUrl()))
-                    .retrieve()
-                    .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
-                    .map(response -> {
-                        if (response != null && response.containsKey("version")) {
-                            return response.get("version").toString();
-                        }
-                        return "";
-                    });
+        if ( subResponse != null && subResponse.containsKey("assets") )
+        {
+            responseList = (List) subResponse.get("assets");
         }
 
-        return versionMono.flatMap(latestVersion -> {
-            if (latestVersion == null || latestVersion.isEmpty()) {
-                log.warn("Gradle 최신 버전 확인 불가");
-                return Mono.empty();
+        if ( !responseList.isEmpty() )
+        {
+            for ( Map<String, Object> assets : responseList )
+            {
+                if ( assets != null && assets.containsKey("browser_download_url")
+                  && assets.get("browser_download_url").toString().contains("64-bit.exe")
+                   )
+                {
+                    downloadUrl = assets.get("browser_download_url").toString();
+                    downloadFile(downloadUrl, JavelinConfig.getRoot(), false);
+                    break;
+                }
             }
-
-            String downloadUrl = new StringBuilder()
-                    .append(javelinConfig.getGradle().getPrefix())
-                    .append(latestVersion).append("-bin.zip")
-                    .toString();
-
-            return downloadFile(downloadUrl, javelinConfig.getDownload().getPath(), false);
-        });
-    }
-
-    // Git 다운로드
-    private Mono<Void> downloadGit() {
-        log.info("Git 다운로드");
-
-        String fixedVersion = javelinConfig.getGit().getFixedVersion();
-
-        Mono<String> versionMono;
-        if (fixedVersion != null && !fixedVersion.isEmpty()) {
-            versionMono = Mono.just(fixedVersion);
-        } else {
-            versionMono = webClient.get()
-                    .uri(Objects.requireNonNull(javelinConfig.getGit().getUrl()))
-                    .retrieve()
-                    .bodyToMono(new ParameterizedTypeReference<List<Map<String, Object>>>() {})
-                    .map(responseList -> {
-                        for (Map<String, Object> tempRes : responseList) {
-                            if (tempRes != null && tempRes.containsKey("name")
-                                    && !tempRes.get("name").toString().contains("-rc")) {
-                                return tempRes.get("name").toString();
-                            }
-                        }
-                        return "";
-                    });
         }
 
-        return versionMono.flatMap(latestVersion ->
-            webClient.get()
-                .uri(javelinConfig.getGit().getPrefix() + latestVersion)
-                .retrieve()
-                .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
-                .flatMap(subResponse -> {
-                    if (subResponse != null && subResponse.containsKey("assets")) {
-                        @SuppressWarnings("unchecked")
-                        List<Map<String, Object>> responseList = (List<Map<String, Object>>) subResponse.get("assets");
+        stopWatch.stop();
 
-                        for (Map<String, Object> assets : responseList) {
-                            if (assets != null && assets.containsKey("browser_download_url")
-                                    && assets.get("browser_download_url").toString().contains("64-bit.exe")) {
-                                String downloadUrl = assets.get("browser_download_url").toString();
-                                return downloadFile(downloadUrl, javelinConfig.getDownload().getPath(), false);
-                            }
-                        }
-                    }
-                    return Mono.empty();
-                })
-        )
-        .onErrorResume(WebClientResponseException.class, e -> {
-            if (e.getStatusCode().value() == 401) {
-                log.warn("GitHub API 인증 실패 (401). Git 다운로드를 건너뜁니다.");
-            } else {
-                log.error("Git API 호출 실패: {}", e.getMessage());
+        // Postman 다운로드
+        stopWatch.start("Postman 다운로드");
+        downloadUrl = JavelinConfig.getPostman().getPrefix()
+                    + JavelinConfig.getPostman().getFixedVersion()
+                    + JavelinConfig.getPostman().getSuffix();
+        downloadFile( downloadUrl, JavelinConfig.getRoot(), false);
+        stopWatch.stop();
+
+        stopWatch.start("Extensions 다운로드");
+
+        // Extension Path를 확인 (/download/extensions)
+        Files.createDirectories(Paths.get(JavelinConfig.getRoot() + ExtensionPath));
+
+        // 각 Extension 유형별 Path를 확인 (/download/extensions/{})
+        for (Map.Entry<String, LinkedHashSet<JavelinConfig.Category>> entry : JavelinConfig.getVscode().getExtensions().getCategory().entrySet())
+        {
+            downloadUrlPrefix = new StringBuilder().append(JavelinConfig.getRoot())
+                                                .append(ExtensionPath)
+                                                .append("/")
+                                                .append(entry.getKey())
+                                                .append("/")
+                                                .toString();
+
+            Files.createDirectories(Paths.get(downloadUrlPrefix));
+
+            // 유형별로 파일을 다운로드
+            for (JavelinConfig.Category category : entry.getValue())
+            {
+                String publisher = category.getPublisher();
+                String extensionName = category.getExtensionName();
+                latestVersion = null;
+
+                if ( category.getGiturl() != null && !category.getGiturl().isEmpty() )
+                {
+                    latestVersion = getGitVersion(category.getGiturl(), JavelinConfig.getVscode().getVersion());
+                }
+
+                if ( latestVersion == null || latestVersion.isEmpty() )
+                {
+                    latestVersion = getLatestVersion(publisher, extensionName);
+                }
+
+                downloadLatestVersion(publisher, extensionName, latestVersion, downloadUrlPrefix);
             }
-            return Mono.empty();
-        })
-        .onErrorResume(Exception.class, e -> {
-            log.error("Git 다운로드 중 예상치 못한 오류: {}", e.getMessage());
-            return Mono.empty();
-        });
+        }
+
+        stopWatch.stop();
+        log.info("{}", stopWatch.prettyPrint());
+        JavelinConfig.setDownloadComplete(true);
+        log.info("FINISH DOWNLOAD !!");
     }
 
-    // VSCode 다운로드
-    private Mono<Void> downloadVscode() {
-        log.info("VSCode 다운로드");
-        String apiUrl = javelinConfig.getVscode().getUrl();
+    @SuppressWarnings({ "unchecked", "null" })
+    private String getGitVersion(String gitUrl, String vsCodeVersion) throws Exception
+    {
+        List<String> diffVersionSource = Arrays.asList(vsCodeVersion.split("\\."));
+        List<String> diffVersionTarget = null;
 
-        return webClient.get()
-                .uri(Objects.requireNonNull(apiUrl))
-                .retrieve()
-                .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
-                .flatMap(response -> {
-                    if (response != null && response.containsKey("name") && response.containsKey("url")) {
-                        String version = response.get("name").toString();
-                        String downloadUrl = response.get("url").toString();
-                        
-                        javelinConfig.getVscode().setVersion(version);
-                        
-                        log.info("VSCode 버전: {}", version);
-                        log.info("VSCode 다운로드 URL: {}", downloadUrl);
-                        
-                        return downloadFile(downloadUrl, javelinConfig.getDownload().getPath(), false);
-                    } else {
-                        log.warn("VSCode API 응답에 필요한 정보가 없습니다.");
-                        return Mono.empty();
-                    }
-                })
-                .onErrorResume(WebClientResponseException.class, e -> {
-                    log.error("VSCode API 호출 실패: {}", e.getMessage());
-                    return Mono.empty();
-                })
-                .onErrorResume(Exception.class, e -> {
-                    log.error("VSCode 다운로드 중 예상치 못한 오류: {}", e.getMessage());
-                    return Mono.empty();
-                });
-    }
+        List<Map<String, Object>> responseList = restTemplate.getForObject(gitUrl, List.class);
 
-    // Spring Tool Suite 다운로드
-    private Mono<Void> downloadSpringToolSuite() {
-        log.info("Spring Tool Suite 다운로드");
+        if ( responseList != null )
+        {
+            for ( Map<String, Object> response : responseList)
+            {
+                if ( response.containsKey("name") )
+                {
+                    diffVersionTarget = Arrays.asList(response.get("name").toString().toLowerCase().replace("v", "").split("\\."));
 
-        String stsVersion = javelinConfig.getSpringToolSuite().getStsVersion();
-        String eclipseVersion = javelinConfig.getSpringToolSuite().getEclipseVersion();
-        
-        log.info("Spring Tool Suite 버전: {}", stsVersion);
-        log.info("Eclipse 버전: {}", eclipseVersion);
-        
-        // STS 버전의 첫 번째 문자를 추출하여 STS 접두사 생성 (예: "4.32.1.RELEASE" -> "STS4")
-        String stsPrefix = "STS" + stsVersion.charAt(0);
-        
-        // 다운로드 URL 생성
-        String downloadUrl = javelinConfig.getSpringToolSuite().getUrl()
-                .replace("{sts-prefix}", stsPrefix)
-                .replace("{sts-version}", stsVersion)
-                .replace("{eclipse-version}", eclipseVersion);
-        
-        log.info("Spring Tool Suite 다운로드 URL: {}", downloadUrl);
-        
-        return downloadFile(downloadUrl, javelinConfig.getDownload().getPath(), false)
-                .onErrorResume(Exception.class, e -> {
-                    log.error("Spring Tool Suite 다운로드 중 오류: {}", e.getMessage());
-                    return Mono.empty();
-                });
-    }
-
-    // Postman 다운로드
-    private Mono<Void> downloadPostman() {
-        log.info("Postman 다운로드");
-
-        String downloadUrl = javelinConfig.getPostman().getPrefix()
-                + javelinConfig.getPostman().getFixedVersion()
-                + javelinConfig.getPostman().getSuffix();
-
-        return downloadFile(downloadUrl, javelinConfig.getDownload().getPath(), false);
-    }
-
-    // Extension 다운로드
-    private Mono<Void> downloadExtension() {
-        log.info("Extension 다운로드");
-
-        String extensionBasePath = javelinConfig.getVscode().getExtension().getClass().getSimpleName();
-        Path extensionRootPath = Paths.get(javelinConfig.getDownload().getPath(), extensionBasePath);
-
-        return Mono.fromCallable(() -> {
-            Files.createDirectories(extensionRootPath);
-            return extensionRootPath.toString();
-        })
-        .subscribeOn(Schedulers.boundedElastic())
-        .flatMap(extensionRoot -> 
-            Flux.fromIterable(javelinConfig.getVscode().getExtension().getCategory().entrySet())
-                .concatMap(entry -> {
-                    String categoryPath = extensionRoot + "/" + entry.getKey();
-                    log.info("Extension 카테고리 처리 시작: {}", entry.getKey());
-                    
-                    try
+                    if ( diffVersionSource.get(0).compareTo(diffVersionTarget.get(0)) >= 0
+                      && diffVersionSource.get(1).compareTo(diffVersionTarget.get(1)) >= 0 )
                     {
-                        Files.createDirectories(Paths.get(categoryPath));
-                    }
-                    catch (Exception e)
-                    {
-                        log.error("다운로드 디렉토리 초기화 실패");
-                        return Mono.empty();
-                    }
-
-                    return Flux.fromIterable(entry.getValue())
-                            .concatMap(category -> {
-                                log.info("Extension 다운로드 시작: {}.{}", category.getPublisher(), category.getExtensionName());
-                                return getLatestVersion(category.getPublisher(), category.getExtensionName(), categoryPath + "/")
-                                    .doOnSuccess(v -> log.info("Extension 다운로드 완료: {}.{}", category.getPublisher(), category.getExtensionName()));
-                            })
-                            .then()
-                            .doOnSuccess(v -> log.info("Extension 카테고리 완료: {}", entry.getKey()));
-                })
-                .then()
-        );
-    }
-
-    // 확장 버전 조회, 다운로드 처리
-    private Mono<Void> getLatestVersion(String publisher, String extensionName, String baseDir) {
-        String openVsxApiUrl = "https://open-vsx.org/api/" + publisher + "/" + extensionName;
-
-        return webClient.get()
-                .uri(openVsxApiUrl)
-                .retrieve()
-                .bodyToMono(String.class)
-                .flatMap(responseBody -> {
-                    try {
-                        JsonNode root = objectMapper.readTree(responseBody);
-                        String latestVersion = root.path("version").asText();
-
-                        String downloadUrl = String.format(
-                            "https://open-vsx.org/api/%s/%s/%s/file/%s.%s-%s.vsix",
-                            publisher, extensionName, latestVersion, publisher, extensionName, latestVersion
-                        );
-
-                        String targetPath = baseDir + publisher + "." + extensionName + "." + latestVersion + ".vsix";
-
-                        return downloadFile(downloadUrl, targetPath, true);
-
-                    } catch (Exception e) {
-                        return Mono.error(e);
-                    }
-                });
-    }
-
-    // 파일 다운로드 및 저장 - 메타데이터 캐시를 활용한 중복 다운로드 방지
-    private Mono<Void> downloadFile(String url, String targetPath, Boolean isExtension) {
-        String decodeUrl = URLDecoder.decode(url, StandardCharsets.UTF_8);
-        
-        log.info("DOWNLOAD URL : {}", decodeUrl);
-        log.info("Determining final file path for: {}", targetPath); 
-        
-        return Mono.fromCallable(() -> {
-            // 파일명 결정 로직을 먼저 처리
-            String filename = null;
-            
-            if (isExtension) {
-                filename = Paths.get(targetPath).getFileName().toString();
-            } else {
-                int lastSlashIndex = decodeUrl.lastIndexOf("/");
-                if (lastSlashIndex >= 0 && lastSlashIndex < decodeUrl.length() - 1) {
-                    filename = decodeUrl.substring(lastSlashIndex + 1);
-                    int questionMarkIndex = filename.indexOf("?");
-                    if (questionMarkIndex > -1) {
-                        filename = filename.substring(0, questionMarkIndex);
-                    }
-                    int hashIndex = filename.indexOf("#");
-                    if (hashIndex > -1) {
-                        filename = filename.substring(0, hashIndex);
+                        return response.get("name").toString().replace("v", "");
                     }
                 }
             }
-            
-            if (filename == null || filename.isEmpty()) {
-                throw new RuntimeException("Cannot determine filename from URL: " + decodeUrl);
-            }
-            
-            Path finalTargetPath = isExtension ? Paths.get(targetPath) : Paths.get(targetPath, filename);
-            
-            try {
-                Files.createDirectories(finalTargetPath.getParent());
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to create directories for " + finalTargetPath.getParent(), e);
-            }
-            
-            return finalTargetPath;
-        })
-        .subscribeOn(Schedulers.boundedElastic())
-        .flatMap(finalTargetPath -> {
-            log.info("Final file will be written to: {}", finalTargetPath.toAbsolutePath());
-            
-            // 파일이 이미 존재하는지 확인
-            return Mono.fromCallable(() -> Files.exists(finalTargetPath))
-                .subscribeOn(Schedulers.boundedElastic())
-                .flatMap(fileExists -> {
-                    if (fileExists) {
-                        log.info("파일이 이미 존재합니다. 다운로드를 건너뜁니다: {}", finalTargetPath);
-                        return Mono.empty();
-                    }
-                    
-                    // 파일이 없으면 다운로드 수행
-                    log.info("파일을 다운로드합니다: {}", finalTargetPath);
-                    return performDownload(decodeUrl, finalTargetPath);
-                });
-        })
-        .onErrorResume(WebClientResponseException.class, e -> {
-            log.error("WebClient HTTP error during download from {}. Status: {}, Body: {}", decodeUrl, e.getStatusCode(), e.getResponseBodyAsString(), e);
-            return Mono.error(new RuntimeException("Failed to download file from " + decodeUrl + " due to HTTP error: " + e.getStatusCode(), e));
-        })
-        .onErrorResume(Exception.class, e -> {
-            log.error("An unexpected error occurred during download from {}: {}", decodeUrl, e.getMessage(), e);
-            return Mono.error(new RuntimeException("An unexpected error occurred during download from " + decodeUrl, e));
-        });
+        }
+
+        return null;
     }
-    
-    // 실제 다운로드 수행
-    private Mono<Void> performDownload(String decodeUrl, Path finalTargetPath) {
-        return webClient.get()
-            .uri(Objects.requireNonNull(decodeUrl))
-            .retrieve()
-            .bodyToFlux(DataBuffer.class)
-            .timeout(Duration.ofMinutes(30))
-            .doOnNext(dataBuffer -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("Received DataBuffer of size: {} bytes", dataBuffer.readableByteCount());
-                }
-            })
-            .doOnComplete(() -> {
-                log.info("DataBuffer flux completed for URL: {}", decodeUrl);
-            })
-            .doOnError(e -> {
-                log.error("Error in DataBuffer flux for URL: {}", decodeUrl, e);
-            })
-            .transform(dataBufferFlux -> 
-                DataBufferUtils.write(Objects.requireNonNull(dataBufferFlux), Objects.requireNonNull(finalTargetPath))
-                    .subscribeOn(Schedulers.boundedElastic())
-                    .doOnSuccess(v -> {
-                        log.info("DataBufferUtils.write completed for: {}", finalTargetPath);
-                    })
-                    .doOnError(e -> {
-                        log.error("Error in DataBufferUtils.write for: {}", finalTargetPath, e);
-                    })
-            )
-            .then(Mono.fromCallable(() -> {
-                // 파일 쓰기 완료 후 크기 확인
-                try {
-                    long fileSize = Files.size(finalTargetPath);
-                    log.info("다운로드 완료 - {} : {} bytes", finalTargetPath, fileSize);
-                    
-                    if (fileSize == 0) {
-                        log.warn("파일이 비어있습니다: {}", finalTargetPath);
-                    }
-                    
-                    return fileSize;
-                } catch (IOException e) {
-                    log.error("파일 크기 확인 실패: {}", finalTargetPath, e);
-                    return 0L;
-                }
-            }).subscribeOn(Schedulers.boundedElastic()).then())
-            .doOnError(e -> log.error("다운로드 중 오류 발생 - URL: {}, Path: {}", decodeUrl, finalTargetPath, e));
+    private String getLatestVersion(String publisher, String extensionName) throws IOException
+    {
+        String url = String.format(JavelinConfig.getVscode().getExtensions().getVersion());
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        String body = String.format("{\"filters\":[{\"criteria\":[{\"filterType\":7,\"value\":\"%s.%s\"}]}],\"flags\":870}", publisher, extensionName);
+        HttpEntity<String> entity = new HttpEntity<>(body, headers);
+
+        @SuppressWarnings("null")
+        ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
+
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode root = mapper.readTree(response.getBody());
+        return root.path("results").get(0).path("extensions").get(0).path("versions").get(0).path("version").asText();
+    }
+
+    private void downloadLatestVersion(String publisher, String extensionName, String latestVersion, String baseUrl) throws Exception {
+        String downloadUrl = String.format(JavelinConfig.getVscode().getExtensions().getVsix(), publisher, publisher, extensionName, latestVersion);
+        String targetPath = baseUrl + publisher + "." + extensionName + "." + latestVersion + ".vsix";
+        downloadFile(downloadUrl, targetPath, true);
+    }
+
+    @SuppressWarnings("null")
+    private void downloadFile(String url, String targetPath, Boolean isExtensions) throws IOException
+    {
+        log.info("DOWNLOAD URL : {}", url);
+        RestTemplate restTemplate = new RestTemplate();
+
+        // Prepare the request callback
+        RequestCallback requestCallback = restTemplate.httpEntityCallback(null);
+
+        // Prepare the response extractor
+        ResponseExtractor<Void> responseExtractor = new FileResponseExtractor(targetPath, url, isExtensions);
+
+        // Execute the request
+        restTemplate.execute(url, HttpMethod.GET, requestCallback, responseExtractor);
+    }
+
+    private static class FileResponseExtractor implements ResponseExtractor<Void>
+    {
+        private final String targetPathString;
+        private final String requestUrl;
+        private final Boolean isExtension;
+
+        public FileResponseExtractor(String targetPathString, String requestUrl, Boolean isExtension)
+        {
+            this.targetPathString = targetPathString;
+            this.requestUrl = requestUrl;
+            this.isExtension = isExtension;
+        }
+
+        @SuppressWarnings("null")
+        @Override
+        public Void extractData(ClientHttpResponse response) throws IOException
+        {
+            // Get the Content-Disposition header from the response
+            String contentDisposition = response.getHeaders().getFirst("Content-Disposition");
+            String contentType = response.getHeaders().getFirst("Content-Type");
+
+            String filename;
+            if (contentDisposition != null && !contentDisposition.isEmpty()) {
+                int startIndex = contentDisposition.indexOf("filename=") + "filename=".length();
+                int endIndex = contentDisposition.indexOf(";", startIndex);
+
+                if ( endIndex < 0) endIndex = contentDisposition.length();
+
+                // Extract the filename from the Content-Disposition header
+                filename = contentDisposition.substring(startIndex, endIndex);
+            }
+            else if ("application/x-gzip".equals(contentType))
+            {
+                // If Content-Type is application/x-gzip, use the last part of the request URL as the filename
+                filename = requestUrl.substring(requestUrl.lastIndexOf("/") + 1);
+            }
+            else
+            {
+                throw new IOException("Cannot determine filename from the response");
+            }
+
+            // Create the target path
+            Path targetPath = null;
+            if ( isExtension )
+            {
+                // Extension의 filename은 targetPath는 마지막 / 뒤 문자열로 변환
+                filename = targetPathString.substring(targetPathString.lastIndexOf("/") + 1);
+
+                // Extension의 targetPath는 기존 targetPath에서 파일명을 제외한 문자열로 변환
+                targetPath = Paths.get(targetPathString.substring(0, targetPathString.lastIndexOf("/")), filename);
+            }
+            else
+            {
+                targetPath = Paths.get(targetPathString, filename);
+            }
+
+            // Ensure the target directory exists
+            Files.createDirectories(targetPath.getParent());
+
+            // Copy the file to the target path
+            try (FileOutputStream out = new FileOutputStream(targetPath.toFile()))
+            {
+                StreamUtils.copy(response.getBody(), out);
+            }
+            return null;
+        }
     }
 }

@@ -5,55 +5,42 @@ spring:
     check-template-location: true
     prefix: classpath:/templates/
     suffix: .html
-  task:
-    scheduling:
-      pool:
-        size: 5  # 스케줄링 스레드 풀 크기
 
 javelin:
-  github-token: ${GITHUB_TOKEN:}  # 환경변수가 없으면 빈 문자열
-  download:
-    enable: true  # 다운로드 기능 활성화/비활성화
-    clear: false
-    path: "download/"  # 다운로드 경로
-    schedule:
-      cron: "0 0 2 * * *"  # 매일 오전 2시 실행 (초 분 시 일 월 요일)
-  amazon-corretto:
-    versions: [21, 25]  # 다운로드할 버전들
-    url: "https://corretto.aws/downloads/latest/amazon-corretto-{version}-x64-windows-jdk.msi"
-  apache-maven:
-    url: "https://api.github.com/repos/apache/maven/tags"
-    prefix: "https://downloads.apache.org/maven/maven-"
-#    fixed-version: "3.9.9"
-  gradle:
-    url: "https://services.gradle.org/versions/current"
-    prefix: "https://services.gradle.org/distributions/gradle-"
-  git:
-    url: "https://api.github.com/repos/git-for-windows/git/tags"
-    prefix: "https://api.github.com/repos/git-for-windows/git/releases/tags/"
+  root: "/download/"
   vscode:
     url : "https://update.code.visualstudio.com/api/update/win32-x64/stable/latest"
-    extension:
-      root: "extension/"
+    extensions:
+      root: "extensions/"
+      version: "https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery?api-version=6.1-preview.1"
+      vsix: "https://%s.gallery.vsassets.io/_apis/public/gallery/publisher/%s/extension/%s/%s/assetbyname/Microsoft.VisualStudio.Services.VSIXPackage"
       category:
         common:
         - publisher: "ms-ceintl"
           extensionName: "vscode-language-pack-ko"
+          giturl: "https://api.github.com/repos/microsoft/vscode-loc/tags"
         - publisher: "esbenp"
           extensionName: "prettier-vscode"
-        - publisher: "redhat"
-          extensionName: "vscode-xml"
+        - publisher: "mohsen1"
+          extensionName: "prettify-json"
         - publisher: "redhat"
           extensionName: "vscode-yaml"
         - publisher: "pkief"
           extensionName: "material-icon-theme"
         - publisher: "tyriar"
           extensionName: "sort-lines"
-        - publisher: "usernamehw"
-          extensionName: "remove-empty-lines"
+        remote:
+        - publisher: "ms-vscode-remote"
+          extensionName: "remote-ssh"
+        - publisher: "ms-vscode-remote"
+          extensionName: "remote-ssh-edit"
+        - publisher: "ms-vscode"
+          extensionName: "remote-explorer"
         java:
         - publisher: "redhat"
           extensionName: "java"
+        - publisher: "visualstudioexptteam"
+          extensionName: "vscodeintellicode"
         - publisher: "vscjava"
           extensionName: "vscode-java-debug"
         - publisher: "vscjava"
@@ -63,9 +50,20 @@ javelin:
         - publisher: "vscjava"
           extensionName: "vscode-java-test"
         - publisher: "vscjava"
+          extensionName: "vscode-lombok"
+        - publisher: "vscjava"
           extensionName: "vscode-maven"
         - publisher: "vscjava"
           extensionName: "vscode-gradle"
+        python:
+        - publisher: "ms-python"
+          extensionName: "debugpy"
+        - publisher: "ms-python"
+          extensionName: "isort"
+        - publisher: "ms-python"
+          extensionName: "python"
+        - publisher: "ms-python"
+          extensionName: "vscode-pylance"
         spring:
         - publisher: "vmware"
           extensionName: "vscode-boot-dev-pack"
@@ -75,19 +73,24 @@ javelin:
           extensionName: "vscode-spring-boot-dashboard"
         - publisher: "vscjava"
           extensionName: "vscode-spring-initializr"
-        openapi:
-        - publisher: "42crunch"
-          extensionName: "vscode-openapi"
-  spring-tool-suite:
-    sts-version: "4.32.1.RELEASE"
-    eclipse-version: "e4.37"
-    url: "https://cdn.spring.io/spring-tools/release/{sts-prefix}/{sts-version}/dist/{eclipse-version}/spring-tools-for-eclipse-{sts-version}-{eclipse-version}.0-win32.win32.x86_64.zip"
+        golang:
+        - publisher: "golang"
+          extensionName: "Go"
+  microsoft-jdk:
+    - 11
+    - 17
+    - 21
+  apache-maven:
+    url: "https://api.github.com/repos/apache/maven/tags"
+    prefix: "https://downloads.apache.org/maven/maven-"
+#    fixed-version: "3.9.6"
+  gradle:
+    url: "https://services.gradle.org/versions/current"
+    prefix: "https://services.gradle.org/distributions/gradle-"
+  git:
+    url: "https://api.github.com/repos/git-for-windows/git/tags"
+    prefix: "https://api.github.com/repos/git-for-windows/git/releases/tags/"
   postman:
-    enabled: false  # Postman 다운로드를 선택적으로 활성화/비활성화
     prefix: "https://dl.pstmn.io/download/version/"
     fixed-version: "9.31.32"
     suffix: "/windows"
-
-logging:
-  level:
-    root: WARN

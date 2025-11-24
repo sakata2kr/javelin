@@ -44,17 +44,17 @@
             </tr>
         </thead>
         <tbody>
+            <tr th:each="base : ${basefiles}">
+                <td colspan="2" th:text="${base.category}" class="center"></td>
+                <td><a th:href="@{${base.url}}" th:text="${base.filename}"></a></td>
+            </tr>
             <tr th:each="jdk, status : ${jdkfiles}">
                 <td th:text="${jdk.category}" th:rowspan="${#lists.size(jdkfiles)}" th:if="${status.first}" class="center"></td>
                 <td th:text="${jdk.subcategory}" class="center"></td>
                 <td><a th:href="@{${jdk.url}}" th:text="${jdk.filename}"></a></td>
             </tr>
-            <tr th:each="base : ${basefiles}">
-                <td colspan="2" th:text="${base.category}" class="center"></td>
-                <td><a th:href="@{${base.url}}" th:text="${base.filename}"></a></td>
-            </tr>
             <tr th:each="ext, status : ${commexts}">
-                <td th:text="${ext.category}" th:rowspan="${#lists.size(commexts) + #lists.size(javaexts) + #lists.size(springexts) + #lists.size(openapiexts)}" th:if="${status.first}" class="center"></td>
+                <td th:text="${ext.category}" th:rowspan="${#lists.size(commexts) + #lists.size(javaexts) + #lists.size(springexts) + #lists.size(golangexts)}" th:if="${status.first}" class="center"></td>
                 <td th:text="${ext.subcategory}" th:rowspan="${#lists.size(commexts)}" th:if="${status.first}" class="center"></td>
                 <td><a th:href="@{${ext.url}}" th:text="${ext.filename}"></a></td>
             </tr>
@@ -66,8 +66,8 @@
                 <td th:text="${ext.subcategory}" th:rowspan="${#lists.size(springexts)}" th:if="${status.first}" class="center"></td>
                 <td><a th:href="@{${ext.url}}" th:text="${ext.filename}"></a></td>
             </tr>
-            <tr th:each="ext, status : ${openapiexts}">
-                <td th:text="${ext.subcategory}" th:rowspan="${#lists.size(openapiexts)}" th:if="${status.first}" class="center"></td>
+            <tr th:each="ext, status : ${golangexts}">
+                <td th:text="${ext.subcategory}" th:rowspan="${#lists.size(golangexts)}" th:if="${status.first}" class="center"></td>
                 <td><a th:href="@{${ext.url}}" th:text="${ext.filename}"></a></td>
             </tr>
         </tbody>
