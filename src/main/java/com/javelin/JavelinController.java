@@ -150,7 +150,7 @@ public class JavelinController
                 tempMap.put("url", "/getFile/" + fileName);
                 baseSet.add(tempMap);
             }
-            else if ( fileName.toLowerCase().startsWith("vscodium") )
+            else if ( fileName.toLowerCase().startsWith("vscode") )
             {
                 tempMap.put("category", "VSCodium (Visual Studio Code 기반 IDE)");
                 tempMap.put("filename", fileName);
@@ -237,7 +237,7 @@ public class JavelinController
     {
         try
         {
-            Path filePath = Paths.get(javelinConfig.getDownload().getPath() + javelinConfig.getVscodium().getExtension().getRoot() + category).resolve(fileName).normalize();
+            Path filePath = Paths.get(javelinConfig.getDownload().getPath() + javelinConfig.getVscode().getExtension().getRoot() + category).resolve(fileName).normalize();
             Resource resource = new UrlResource(Objects.requireNonNull(filePath.toUri()));
             if (resource.exists())
             {

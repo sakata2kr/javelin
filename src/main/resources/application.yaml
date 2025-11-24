@@ -5,12 +5,19 @@ spring:
     check-template-location: true
     prefix: classpath:/templates/
     suffix: .html
+  task:
+    scheduling:
+      pool:
+        size: 5  # 스케줄링 스레드 풀 크기
 
 javelin:
   github-token: ${GITHUB_TOKEN:}  # 환경변수가 없으면 빈 문자열
   download:
-    enable: false  # 다운로드 기능 활성화/비활성화
+    enable: true  # 다운로드 기능 활성화/비활성화
+    clear: false
     path: "download/"  # 다운로드 경로
+    schedule:
+      cron: "0 0 2 * * *"  # 매일 오전 2시 실행 (초 분 시 일 월 요일)
   amazon-corretto:
     versions: [21, 25]  # 다운로드할 버전들
     url: "https://corretto.aws/downloads/latest/amazon-corretto-{version}-x64-windows-jdk.msi"
@@ -24,10 +31,8 @@ javelin:
   git:
     url: "https://api.github.com/repos/git-for-windows/git/tags"
     prefix: "https://api.github.com/repos/git-for-windows/git/releases/tags/"
-  vscodium:
-    url: "https://api.github.com/repos/VSCodium/vscodium/tags"
-    prefix: "https://github.com/VSCodium/vscodium/releases/download/"
-    filename-pattern: "VSCodiumSetup-x64-%s.exe"
+  vscode:
+    url : "https://update.code.visualstudio.com/api/update/win32-x64/stable/latest"
     extension:
       root: "extension/"
       category:

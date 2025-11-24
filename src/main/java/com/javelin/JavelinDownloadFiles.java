@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.annotation.PostConstruct;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.URLDecoder;
@@ -22,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferUtils;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
@@ -33,30 +35,53 @@ import reactor.core.scheduler.Schedulers;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class JavelinDownloadFiles {
-
+public class JavelinDownloadFiles
+{
     private final WebClient webClient;
     private final JavelinConfig javelinConfig;
     private final ObjectMapper objectMapper = new ObjectMapper();  // ObjectMapper 재사용
 
-    // 공통으로 사용하는 함수형 인터페이스 정의
-    @FunctionalInterface
-    public interface DownloadUrlExtractor<T> {
-        String extractDownloadUrl(T response) throws Exception;
+    @PostConstruct
+    public void init()
+    {
+        // 다운로드 기능이 비활성화된 경우 실행하지 않음
+        if (!javelinConfig.getDownload().isEnable())
+        {
+            log.info("다운로드 기능이 비활성화되어 있습니다. (javelin.download.enable=false)");
+            return;
+        }
+        else if (javelinConfig.getDownload().isClear())
+        {
+            log.warn("다운로드 파일 초기화 기능이 활성화 되어 있습니다. (javelin.download.clear=true)");
+
+            Path dirPath = Paths.get(javelinConfig.getDownload().getPath());
+
+            try
+            {
+                if (Files.exists(dirPath))
+                {
+                    Files.walk(dirPath)
+                        .map(Path::toFile)
+                        .sorted((o1, o2) -> -o1.compareTo(o2))
+                        .forEach(File::delete);
+                }
+            }
+            catch (Exception e)
+            {
+                log.error("다운로드 디렉토리 초기화 실패");
+            }
+        }
     }
 
-    @PostConstruct
-    public void init() {
+    // 매일 오전 2시에 실행 (cron: 초 분 시 일 월 요일)
+    @Scheduled(fixedDelay=200000)
+    private void executeDownload()
+    {
         // 다운로드 기능이 비활성화된 경우 실행하지 않음
         if (!javelinConfig.getDownload().isEnable()) {
             log.info("다운로드 기능이 비활성화되어 있습니다. (javelin.download.enable=false)");
             return;
         }
-        
-        log.info("다운로드 기능이 활성화되어 있습니다. 다운로드를 시작합니다.");
-        
-        // 디렉토리 삭제
-        deleteDirectory();
 
         // 다운로드 작업 리스트 생성
         java.util.List<Mono<Void>> downloadTasks = new java.util.ArrayList<>();
@@ -64,7 +89,7 @@ public class JavelinDownloadFiles {
         downloadTasks.add(downloadApacheMaven());
         downloadTasks.add(downloadGradle());
         downloadTasks.add(downloadGit());
-        downloadTasks.add(downloadVscodium());
+        downloadTasks.add(downloadVscode());
         downloadTasks.add(downloadSpringToolSuite());
         downloadTasks.add(downloadExtension());
         
@@ -76,58 +101,23 @@ public class JavelinDownloadFiles {
             log.info("Postman 다운로드가 비활성화되어 있습니다.");
         }
         
-        // 다운로드 작업 비동기로 실행, 블로킹 하지 않고 구독 시작
-        Flux<Mono<Void>> downloads = Flux.fromIterable(downloadTasks);
-
-        downloads.flatMap(mono -> mono.onErrorContinue((e, obj) -> {
-                    log.error("Download error on task: {}", obj, e);
-                }))
+        // 다운로드 작업을 순차적으로 하나씩 실행 (concurrency = 1)
+        Flux.fromIterable(downloadTasks)
+                .concatMap(mono -> mono
+                    .doOnError(e -> log.error("Download error on task", e))
+                    .onErrorResume(e -> {
+                        log.warn("작업 실패, 다음 작업을 계속 진행합니다.");
+                        return Mono.empty();
+                    })
+                )
                 .then()
                 .doOnSuccess(v -> {
                     log.info("FINISH DOWNLOAD !!");
                 })
+                .doOnError(e -> {
+                    log.error("전체 다운로드 프로세스 오류", e);
+                })
                 .subscribe();
-    }
-
-    private void deleteDirectory()
-    {
-        Path dirPath = Paths.get(javelinConfig.getDownload().getPath());
-        try
-        {
-            if (Files.exists(dirPath))
-            {
-                Files.walk(dirPath)
-                    .map(Path::toFile)
-                    .sorted((o1, o2) -> -o1.compareTo(o2))
-                    .forEach(File::delete);
-            }
-        }
-        catch (Exception e)
-        {
-            log.error("디렉토리 삭제 실패");
-        }
-    }
-
-    // 공통 API 호출 -> 다운로드 처리
-    private <T> Mono<Void> downloadResource(String apiUrl, ParameterizedTypeReference<T> responseType,
-                                           DownloadUrlExtractor<T> urlExtractor) {
-        return webClient.get()
-                .uri(Objects.requireNonNull(apiUrl))
-                .retrieve()
-                .bodyToMono(Objects.requireNonNull(responseType))
-                .flatMap(response -> {
-                    try {
-                        String downloadUrl = urlExtractor.extractDownloadUrl(response);
-                        if (downloadUrl == null || downloadUrl.isEmpty()) {
-                            log.warn("No download URL extracted from API response: {}", apiUrl);
-                            return Mono.empty();
-                        }
-                        return downloadFile(downloadUrl, javelinConfig.getDownload().getPath(), false);
-                    } catch (Exception e) {
-                        log.error("Error extracting download URL from API response", e);
-                        return Mono.error(e);
-                    }
-                });
     }
 
     // Amazon Corretto JDK 다운로드 (복수 버전)
@@ -140,15 +130,17 @@ public class JavelinDownloadFiles {
             return Mono.empty();
         }
 
-        // 각 버전별로 다운로드 작업 생성
+        // 각 버전별로 순차적으로 다운로드 (concatMap 사용)
         return Flux.fromIterable(versions)
-                .flatMap(version -> {
+                .concatMap(version -> {
                     String downloadUrl = javelinConfig.getAmazonCorretto().getUrl()
                             .replace("{version}", String.valueOf(version));
                     
+                    log.info("Amazon Corretto {} 다운로드 시작", version);
                     log.info("Amazon Corretto {} 다운로드 URL: {}", version, downloadUrl);
                     
                     return downloadFile(downloadUrl, javelinConfig.getDownload().getPath(), false)
+                            .doOnSuccess(v -> log.info("Amazon Corretto {} 다운로드 완료", version))
                             .onErrorResume(Exception.class, e -> {
                                 log.error("Amazon Corretto {} 다운로드 중 오류: {}", version, e.getMessage());
                                 return Mono.empty();
@@ -238,7 +230,7 @@ public class JavelinDownloadFiles {
 
         return versionMono.flatMap(latestVersion -> {
             if (latestVersion == null || latestVersion.isEmpty()) {
-                log.warn("Gradle latest version not found");
+                log.warn("Gradle 최신 버전 확인 불가");
                 return Mono.empty();
             }
 
@@ -311,48 +303,37 @@ public class JavelinDownloadFiles {
         });
     }
 
-    // Vscodium 다운로드
-    private Mono<Void> downloadVscodium() {
-        log.info("VSCODIUM 다운로드");
-        String apiUrl = javelinConfig.getVscodium().getUrl();
+    // VSCode 다운로드
+    private Mono<Void> downloadVscode() {
+        log.info("VSCode 다운로드");
+        String apiUrl = javelinConfig.getVscode().getUrl();
 
-        return downloadResource(apiUrl,
-                new ParameterizedTypeReference<List<Map<String, Object>>>() {},
-                responseList -> {
-                    if (responseList != null && !responseList.isEmpty()) {
-                        String version = javelinConfig.getVscodium().getVersion();
-                        if (version == null || version.isEmpty()) {
-                            for (Map<String, Object> tag : responseList) {
-                                String tagName = (String) tag.get("name");
-                                if (tagName != null && !tagName.contains("-") &&
-                                        !tagName.contains("beta") &&
-                                        !tagName.contains("alpha")) {
-                                    version = tagName;
-                                    break;
-                                }
-                            }
-                        }
-                        javelinConfig.getVscodium().setVersion(version);
-
-                        return new StringBuilder()
-                                .append(javelinConfig.getVscodium().getPrefix())
-                                .append(version)
-                                .append("/")
-                                .append(String.format(javelinConfig.getVscodium().getFilenamePattern(), version))
-                                .toString();
+        return webClient.get()
+                .uri(Objects.requireNonNull(apiUrl))
+                .retrieve()
+                .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                .flatMap(response -> {
+                    if (response != null && response.containsKey("name") && response.containsKey("url")) {
+                        String version = response.get("name").toString();
+                        String downloadUrl = response.get("url").toString();
+                        
+                        javelinConfig.getVscode().setVersion(version);
+                        
+                        log.info("VSCode 버전: {}", version);
+                        log.info("VSCode 다운로드 URL: {}", downloadUrl);
+                        
+                        return downloadFile(downloadUrl, javelinConfig.getDownload().getPath(), false);
+                    } else {
+                        log.warn("VSCode API 응답에 필요한 정보가 없습니다.");
+                        return Mono.empty();
                     }
-                    return null;
                 })
                 .onErrorResume(WebClientResponseException.class, e -> {
-                    if (e.getStatusCode().value() == 401) {
-                        log.warn("GitHub API 인증 실패 (401). VSCodium 다운로드를 건너뜁니다.");
-                    } else {
-                        log.error("VSCodium API 호출 실패: {}", e.getMessage());
-                    }
+                    log.error("VSCode API 호출 실패: {}", e.getMessage());
                     return Mono.empty();
                 })
                 .onErrorResume(Exception.class, e -> {
-                    log.error("VSCodium 다운로드 중 예상치 못한 오류: {}", e.getMessage());
+                    log.error("VSCode 다운로드 중 예상치 못한 오류: {}", e.getMessage());
                     return Mono.empty();
                 });
     }
@@ -400,7 +381,7 @@ public class JavelinDownloadFiles {
     private Mono<Void> downloadExtension() {
         log.info("Extension 다운로드");
 
-        String extensionBasePath = javelinConfig.getVscodium().getExtension().getClass().getSimpleName();
+        String extensionBasePath = javelinConfig.getVscode().getExtension().getClass().getSimpleName();
         Path extensionRootPath = Paths.get(javelinConfig.getDownload().getPath(), extensionBasePath);
 
         return Mono.fromCallable(() -> {
@@ -409,19 +390,29 @@ public class JavelinDownloadFiles {
         })
         .subscribeOn(Schedulers.boundedElastic())
         .flatMap(extensionRoot -> 
-            Flux.fromIterable(javelinConfig.getVscodium().getExtension().getCategory().entrySet())
-                .flatMap(entry -> {
+            Flux.fromIterable(javelinConfig.getVscode().getExtension().getCategory().entrySet())
+                .concatMap(entry -> {
                     String categoryPath = extensionRoot + "/" + entry.getKey();
-                    try {
+                    log.info("Extension 카테고리 처리 시작: {}", entry.getKey());
+                    
+                    try
+                    {
                         Files.createDirectories(Paths.get(categoryPath));
-                    } catch (IOException e) {
-                        return Mono.error(new RuntimeException("Failed to create extension category directory: " + categoryPath, e));
+                    }
+                    catch (Exception e)
+                    {
+                        log.error("다운로드 디렉토리 초기화 실패");
+                        return Mono.empty();
                     }
 
                     return Flux.fromIterable(entry.getValue())
-                            .flatMap(category -> 
-                                getLatestVersion(category.getPublisher(), category.getExtensionName(), categoryPath + "/")
-                            ).then();
+                            .concatMap(category -> {
+                                log.info("Extension 다운로드 시작: {}.{}", category.getPublisher(), category.getExtensionName());
+                                return getLatestVersion(category.getPublisher(), category.getExtensionName(), categoryPath + "/")
+                                    .doOnSuccess(v -> log.info("Extension 다운로드 완료: {}.{}", category.getPublisher(), category.getExtensionName()));
+                            })
+                            .then()
+                            .doOnSuccess(v -> log.info("Extension 카테고리 완료: {}", entry.getKey()));
                 })
                 .then()
         );
@@ -455,7 +446,7 @@ public class JavelinDownloadFiles {
                 });
     }
 
-    // 파일 다운로드 및 저장 - hang 방지를 위한 개선된 버전
+    // 파일 다운로드 및 저장 - 메타데이터 캐시를 활용한 중복 다운로드 방지
     private Mono<Void> downloadFile(String url, String targetPath, Boolean isExtension) {
         String decodeUrl = URLDecoder.decode(url, StandardCharsets.UTF_8);
         
@@ -501,51 +492,19 @@ public class JavelinDownloadFiles {
         .flatMap(finalTargetPath -> {
             log.info("Final file will be written to: {}", finalTargetPath.toAbsolutePath());
             
-            // 스트리밍 다운로드로 메모리 사용량 최적화
-            return webClient.get()
-                .uri(Objects.requireNonNull(decodeUrl))
-                .retrieve()
-                .bodyToFlux(DataBuffer.class)
-                .timeout(Duration.ofMinutes(30)) // 전체 다운로드 타임아웃을 30분으로 증가
-                .doOnNext(dataBuffer -> {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Received DataBuffer of size: {} bytes", dataBuffer.readableByteCount());
+            // 파일이 이미 존재하는지 확인
+            return Mono.fromCallable(() -> Files.exists(finalTargetPath))
+                .subscribeOn(Schedulers.boundedElastic())
+                .flatMap(fileExists -> {
+                    if (fileExists) {
+                        log.info("파일이 이미 존재합니다. 다운로드를 건너뜁니다: {}", finalTargetPath);
+                        return Mono.empty();
                     }
-                })
-                .doOnComplete(() -> {
-                    log.info("DataBuffer flux completed for URL: {}", decodeUrl);
-                })
-                .doOnError(e -> {
-                    log.error("Error in DataBuffer flux for URL: {}", decodeUrl, e);
-                })
-                .transform(dataBufferFlux -> 
-                    DataBufferUtils.write(Objects.requireNonNull(dataBufferFlux), finalTargetPath)
-                        .subscribeOn(Schedulers.boundedElastic())
-                        .doOnSuccess(v -> {
-                            log.info("DataBufferUtils.write completed for: {}", finalTargetPath);
-                        })
-                        .doOnError(e -> {
-                            log.error("Error in DataBufferUtils.write for: {}", finalTargetPath, e);
-                        })
-                )
-                .then(Mono.fromCallable(() -> {
-                    // 파일 쓰기 완료 후 크기 확인
-                    try {
-                        long fileSize = Files.size(finalTargetPath);
-                        log.info("Final file size check - {} : {} bytes", finalTargetPath, fileSize);
-                        
-                        if (fileSize == 0) {
-                            log.warn("File is empty! Checking if file exists and is readable: exists={}, readable={}", 
-                                Files.exists(finalTargetPath), Files.isReadable(finalTargetPath));
-                        }
-                        
-                        return fileSize;
-                    } catch (IOException e) {
-                        log.error("Error checking file size for {}: {}", finalTargetPath, e.getMessage(), e);
-                        return 0L;
-                    }
-                }).subscribeOn(Schedulers.boundedElastic()).then())
-                .doOnError(e -> log.error("Overall error during file download for URL: {} and targetPath: {}", decodeUrl, finalTargetPath, e));
+                    
+                    // 파일이 없으면 다운로드 수행
+                    log.info("파일을 다운로드합니다: {}", finalTargetPath);
+                    return performDownload(decodeUrl, finalTargetPath);
+                });
         })
         .onErrorResume(WebClientResponseException.class, e -> {
             log.error("WebClient HTTP error during download from {}. Status: {}, Body: {}", decodeUrl, e.getStatusCode(), e.getResponseBodyAsString(), e);
@@ -555,5 +514,52 @@ public class JavelinDownloadFiles {
             log.error("An unexpected error occurred during download from {}: {}", decodeUrl, e.getMessage(), e);
             return Mono.error(new RuntimeException("An unexpected error occurred during download from " + decodeUrl, e));
         });
+    }
+    
+    // 실제 다운로드 수행
+    private Mono<Void> performDownload(String decodeUrl, Path finalTargetPath) {
+        return webClient.get()
+            .uri(Objects.requireNonNull(decodeUrl))
+            .retrieve()
+            .bodyToFlux(DataBuffer.class)
+            .timeout(Duration.ofMinutes(30))
+            .doOnNext(dataBuffer -> {
+                if (log.isDebugEnabled()) {
+                    log.debug("Received DataBuffer of size: {} bytes", dataBuffer.readableByteCount());
+                }
+            })
+            .doOnComplete(() -> {
+                log.info("DataBuffer flux completed for URL: {}", decodeUrl);
+            })
+            .doOnError(e -> {
+                log.error("Error in DataBuffer flux for URL: {}", decodeUrl, e);
+            })
+            .transform(dataBufferFlux -> 
+                DataBufferUtils.write(Objects.requireNonNull(dataBufferFlux), Objects.requireNonNull(finalTargetPath))
+                    .subscribeOn(Schedulers.boundedElastic())
+                    .doOnSuccess(v -> {
+                        log.info("DataBufferUtils.write completed for: {}", finalTargetPath);
+                    })
+                    .doOnError(e -> {
+                        log.error("Error in DataBufferUtils.write for: {}", finalTargetPath, e);
+                    })
+            )
+            .then(Mono.fromCallable(() -> {
+                // 파일 쓰기 완료 후 크기 확인
+                try {
+                    long fileSize = Files.size(finalTargetPath);
+                    log.info("다운로드 완료 - {} : {} bytes", finalTargetPath, fileSize);
+                    
+                    if (fileSize == 0) {
+                        log.warn("파일이 비어있습니다: {}", finalTargetPath);
+                    }
+                    
+                    return fileSize;
+                } catch (IOException e) {
+                    log.error("파일 크기 확인 실패: {}", finalTargetPath, e);
+                    return 0L;
+                }
+            }).subscribeOn(Schedulers.boundedElastic()).then())
+            .doOnError(e -> log.error("다운로드 중 오류 발생 - URL: {}, Path: {}", decodeUrl, finalTargetPath, e));
     }
 }

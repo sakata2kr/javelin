@@ -25,7 +25,7 @@ public class JavelinConfig
 {
     private String GitHubToken;
     private Download download;
-    private Vscodium vscodium;
+    private Vscode vscode;
     private AmazonCorretto amazonCorretto;
     private Urls apacheMaven;
     private Urls gradle;
@@ -37,6 +37,7 @@ public class JavelinConfig
     public static class Download
     {
         private boolean enable = true;  // 기본값은 true
+        private boolean clear = true;  // 기본값은 true
         private String path = "download/";  // 기본 경로
         
         public void setPath(String path)
@@ -50,7 +51,7 @@ public class JavelinConfig
     }
 
     @Data
-    public static class Vscodium
+    public static class Vscode
     {
         private String url;
         private String prefix;
