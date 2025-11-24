@@ -1,0 +1,21 @@
+{
+  "name": "javelin",
+  "version": "1.0.0",
+  "description": "환경 변수 자동 설정 매크로",
+  "main": "javelin.js",
+  "scripts": {
+    "start": "node javelin.js",
+    "build": "pkg -t win-x86_64 --no-warning .",
+    "debug": "pkg -t win-x86_64 --debug ."
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "adm-zip": "^0.5.16",
+    "executable": "^4.1.1",
+    "pkg": "^5.8.1",
+    "prompts": "^2.4.2",
+    "tar": "^7.4.3"
+  },
+  "bin": "javelin.js"
+}
