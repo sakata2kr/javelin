@@ -112,7 +112,7 @@ public class JavelinDownloadFiles
                 )
                 .then()
                 .doOnSuccess(v -> {
-                    log.info("FINISH DOWNLOAD !!");
+                    log.warn("FINISH DOWNLOAD !!");
                 })
                 .doOnError(e -> {
                     log.error("전체 다운로드 프로세스 오류", e);
