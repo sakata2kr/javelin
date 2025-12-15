@@ -13,7 +13,7 @@ spring:
 javelin:
   github-token: ${GITHUB_TOKEN:}  # 환경변수가 없으면 빈 문자열
   download:
-    enable: true  # 다운로드 기능 활성화/비활성화
+    enable: false  # 다운로드 기능 활성화/비활성화
     clear: false
     path: "download/"  # 다운로드 경로
     schedule:

@@ -19,18 +19,18 @@ import (
 )
 
 const (
-	defaultURL = "https://ncs.nova.sktelecom.com"
+	defaultURL = "http://nova-harbor.sktelecom.com/javelin/"
 )
 
 type FileManager struct {
-	baseURL                string
-	baseFiles              []string
-	extensionCategory      []string
-	allFiles               []string
-	targetFiles            []string
+	baseURL                 string
+	baseFiles               []string
+	extensionCategory       []string
+	allFiles                []string
+	targetFiles             []string
 	targetExtensionCategory []string
-	procDir                string
-	existsDirs             []string
+	procDir                 string
+	existsDirs              []string
 }
 
 func main() {
@@ -50,7 +50,7 @@ func main() {
 	fm := &FileManager{
 		baseURL: baseURL,
 	}
-	
+
 	if err := fm.run(); err != nil {
 		fmt.Printf("오류가 발생하여 종료합니다: %v\n", err)
 		os.Exit(1)
@@ -166,7 +166,7 @@ func (fm *FileManager) determineProjectDir() (string, error) {
 
 	// 4. 두 개 모두 존재하지 않는 경우
 	fmt.Println("C:\\projects와 D:\\projects가 모두 존재하지 않습니다.")
-	
+
 	// D 드라이브 존재 여부 확인
 	if driveExists("D:") {
 		fmt.Println("D: 드라이브가 존재합니다. D:\\projects를 생성합니다.")
@@ -205,7 +205,7 @@ func (fm *FileManager) fetchRemoteFiles() error {
 	}
 
 	extensionCategoryMap := make(map[string]bool)
-	
+
 	for _, item := range files {
 		fm.allFiles = append(fm.allFiles, item)
 		if !strings.HasPrefix(item, "extensions") {
@@ -235,7 +235,7 @@ func (fm *FileManager) getUserSelections() error {
 	nonJDKFiles := filterFiles(fm.baseFiles, func(s string) bool {
 		return !strings.HasPrefix(s, "microsoft-jdk")
 	})
-	
+
 	fmt.Printf("\n다음 파일들을 자동으로 다운로드 및 설치합니다:\n")
 	for _, file := range nonJDKFiles {
 		fmt.Printf("  - %s\n", file)
@@ -246,7 +246,7 @@ func (fm *FileManager) getUserSelections() error {
 	jdkFiles := filterFiles(fm.baseFiles, func(s string) bool {
 		return strings.HasPrefix(s, "microsoft-jdk")
 	})
-	
+
 	if len(jdkFiles) > 0 {
 		sort.Strings(jdkFiles)
 		selectedJDK := jdkFiles[0]
@@ -258,7 +258,7 @@ func (fm *FileManager) getUserSelections() error {
 	nonCommonExt := filterFiles(fm.extensionCategory, func(s string) bool {
 		return s != "common"
 	})
-	
+
 	if len(nonCommonExt) > 0 {
 		fmt.Printf("\n다음 VSCODE extensions 유형을 자동으로 설치합니다:\n")
 		for _, ext := range nonCommonExt {
@@ -296,13 +296,13 @@ func (fm *FileManager) getUserSelections() error {
 
 func (fm *FileManager) downloadFiles() error {
 	client := &http.Client{}
-	
+
 	fmt.Println("\n파일 다운로드를 시작합니다...")
 	for i, file := range fm.targetFiles {
 		fmt.Printf("[%d/%d] %s 다운로드 중...\n", i+1, len(fm.targetFiles), file)
-		
+
 		localFile := filepath.Join(fm.procDir, file)
-		
+
 		// 디렉토리 생성
 		if err := os.MkdirAll(filepath.Dir(localFile), 0755); err != nil {
 			fmt.Printf("%s 다운로드 중 오류가 발생하여 Skip 합니다: %v\n", file, err)
@@ -421,9 +421,9 @@ func (fm *FileManager) installExecutables() error {
 		} else if strings.Contains(lowerExe, "git") {
 			installDir := filepath.Join(fm.procDir, "git")
 			fmt.Printf("%s 를 자동으로 설치합니다. 설치 위치는 %s 입니다.\n", exeFile, installDir)
-			cmd := exec.Command(localFile, "/VERYSILENT", "/NORESTART", "/NOCANCEL", "/SP-", 
-				"/CLOSEAPPLICATIONS", "/RESTARTAPPLICATIONS", 
-				"/COMPONENTS=icons,ext\\reg\\shellhere,assoc,assoc_sh", 
+			cmd := exec.Command(localFile, "/VERYSILENT", "/NORESTART", "/NOCANCEL", "/SP-",
+				"/CLOSEAPPLICATIONS", "/RESTARTAPPLICATIONS",
+				"/COMPONENTS=icons,ext\\reg\\shellhere,assoc,assoc_sh",
 				fmt.Sprintf("/Dir=%s", installDir))
 			if err := cmd.Run(); err != nil {
 				fmt.Printf("%s 설치 중 오류 발생: %v\n", exeFile, err)
@@ -512,7 +512,7 @@ func (fm *FileManager) registerPaths() error {
 	}
 
 	pathValues := strings.Split(pathValue, ";")
-	
+
 	for _, target := range regTargets {
 		if !contains(pathValues, target) {
 			pathValues = append(pathValues, target)

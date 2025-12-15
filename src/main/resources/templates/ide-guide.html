@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IDE 설치 가이드</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-left">
+                <nav class="tabs">
+                    <a href="#" class="tab">라이브러리</a>
+                    <a href="#" class="tab active">IDE 설치파일</a>
+                    <a href="#" class="tab">공지사항</a>
+                </nav>
+            </div>
+            <div class="header-right">
+                <button class="icon-button"><i class="fas fa-chevron-left"></i></button>
+                <button class="icon-button"><i class="fas fa-chevron-right"></i></button>
+            </div>
+        </header>
+
+        <main class="main-content ide-guide-content">
+            <nav class="breadcrumb">
+                <a href="#" class="breadcrumb-item"><i class="fas fa-home"></i> 개발환경</a>
+                <span class="breadcrumb-separator">›</span>
+                <span class="breadcrumb-item active">IDE 설치 가이드</span>
+            </nav>
+
+            <div class="page-header">
+                <h1>IDE 설치 가이드</h1>
+                <div class="page-actions">
+                    <button class="icon-button"><i class="far fa-star"></i></button>
+                    <button class="icon-button"><i class="fas fa-redo"></i></button>
+                </div>
+            </div>
+            <p class="page-description">개발에 필요한 IDE 설치 가이드를 제공합니다.</p>
+
+            <div class="guide-layout">
+                <div class="guide-main">
+                    <div class="selection-box">
+                        <label for="guide-select">설치 가이드 선택</label>
+                        <select id="guide-select">
+                            <option value="intellij">IntelliJ IDEA 설치 가이드</option>
+                            <option value="vscode">Visual Studio Code 설치 가이드</option>
+                            <option value="eclipse">Eclipse IDE 설치 가이드</option>
+                        </select>
+                    </div>
+
+                    <div class="guide-section">
+                        <div class="guide-title-bar">
+                            <i class="fas fa-wrench icon-large"></i>
+                            <h2>IntelliJ IDEA 설치 가이드</h2>
+                        </div>
+
+                        <div class="guide-step">
+                            <span class="step-number">1</span>
+                            <div class="step-content">
+                                <h3>설치 파일 다운로드</h3>
+                                <p>위 섹션에서 IntelliJ IDEA 설치 파일을 다운로드합니다.</p>
+                                <ul>
+                                    <li><i class="far fa-check-circle check-icon"></i> 운영체제에 맞는 버전 선택</li>
+                                    <li><i class="far fa-check-circle check-icon"></i> 네트워크 드라이브에 저장 권장</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="guide-step">
+                            <span class="step-number">2</span>
+                            <div class="step-content">
+                                <h3>설치 프로그램 실행</h3>
+                                <p>다운로드한 파일을 실행하고 설치 마법사를 따릅니다.</p>
+                                <ul>
+                                    <li><i class="far fa-check-circle check-icon"></i> 관리자 권한으로 실행</li>
+                                    <li><i class="far fa-check-circle check-icon"></i> 기본 설치 경로 사용 권장</li>
+                                    <li><i class="far fa-check-circle check-icon"></i> .java, .kt 파일 연결 설정</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="guide-step">
+                            <span class="step-number">3</span>
+                            <div class="step-content">
+                                <h3>라이선스 설정</h3>
+                                <p>사내 라이선스 서버에 연결합니다.</p>
+                                <ul>
+                                    <li><i class="far fa-check-circle check-icon"></i> License Server: license.company.internal:8080</li>
+                                    <li><i class="far fa-check-circle check-icon"></i> VPN 연결 필수</li>
+                                    <li><i class="far fa-check-circle check-icon"></i> 라이선스 인증 완료 확인</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="guide-step">
+                            <span class="step-number">4</span>
+                            <div class="step-content">
+                                <h3>플러그인 설치</h3>
+                                <p>필수 플러그인을 설치합니다.</p>
+                                <ul>
+                                    <li><i class="far fa-check-circle check-icon"></i> Lombok Plugin</li>
+                                    <li><i class="far fa-check-circle check-icon"></i> SonarLint</li>
+                                    <li><i class="far fa-check-circle check-icon"></i> GitToolBox</li>
+                                    <li><i class="far fa-check-circle check-icon"></i> Rainbow Brackets</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="guide-step">
+                            <span class="step-number">5</span>
+                            <div class="step-content">
+                                <h3>환경 설정</h3>
+                                <p>코드 스타일 및 빌드 도구를 설정합니다.</p>
+                                <ul>
+                                    <li><i class="far fa-check-circle check-icon"></i> Code Style 가져오기: /config/intellij-code-style.xml</li>
+                                    <li><i class="far fa-check-circle check-icon"></i> Maven/Gradle 설정</li>
+                                    <li><i class="far fa-check-circle check-icon"></i> JDK 17 설정</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="guide-sidebar">
+                    <div class="sidebar-card video-guide">
+                        <div class="card-header">
+                            <i class="fas fa-video sidebar-icon"></i>
+                            <h3>동영상 가이드</h3>
+                        </div>
+                        <ul>
+                            <li><a href="#"><i class="fas fa-play-circle video-icon"></i> IntelliJ 설치 <span class="time">12:30</span></a></li>
+                            <li><a href="#"><i class="fas fa-play-circle video-icon"></i> VSCode 설정 <span class="time">8:45</span></a></li>
+                            <li><a href="#"><i class="fas fa-play-circle video-icon"></i> 플러그인 관리 <span class="time">6:20</span></a></li>
+                        </ul>
+                    </div>
+
+                    <div class="sidebar-card related-docs">
+                        <div class="card-header">
+                            <i class="fas fa-book sidebar-icon"></i>
+                            <h3>관련 문서</h3>
+                        </div>
+                        <ul>
+                            <li><a href="#">개발 표준 가이드</a></li>
+                            <li><a href="#">코딩 컨벤션</a></li>
+                            <li><a href="#">NCS 사용 가이드</a></li>
+                            <li><a href="#">빌드 도구 설정</a></li>
+                        </ul>
+                    </div>
+
+                    <div class="sidebar-card support-request">
+                        <p>도움이 필요하신가요?<br>설치 중 문제가 발생하면 기술지원팀에 문의하세요.</p>
+                        <button class="support-button">기술지원 요청</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

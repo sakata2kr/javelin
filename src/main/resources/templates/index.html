@@ -1,76 +1,167 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org"
-    xmlns:c="http://www.thymeleaf.org/extras/thymeleaf-extras-java8">
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <title>개발 환경 세팅을 위한 파일 다운로드</title>
-    <meta name="description" content="" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <style>
-        table {
-            border-collapse: collapse;
-            width: 100%;
-            border: 1px solid gray; /* 회색 바탕선 추가 */
-        }
-        th, td {
-            border: 1px solid gray; /* 회색 바탕선 추가 */
-            padding: 8px;
-            text-align: left;
-        }
-        th {
-            background-color: black; /* 검은색 바탕 */
-            color: white; /* 흰색 글자색 */
-        }
-        td {
-            background-color: white; /* 흰 바탕 */
-            color: black; /* 검은색 글자색 */
-            text-align: left; /* 3번째 td 태그 우측 정렬 */
-            vertical-align: middle; /* 3번째 td 태그 수직 정렬 */
-        }
-        .center {
-            text-align: center; /* 맨 처음 두 td 태그 수평 정렬 */
-            vertical-align: middle; /* 맨 처음 두 td 태그 수직 정렬 */
-        }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Javelin</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body>
-    <h1>개발 환경 설정 관련 파일 목록</h1>
-    <table>
-        <thead>
-            <tr>
-                <th colspan=2 class="center">분류</th>
-                <th class="center">파일명</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr th:each="jdk, status : ${jdkfiles}">
-                <td th:text="${jdk.category}" th:rowspan="${#lists.size(jdkfiles)}" th:if="${status.first}" class="center"></td>
-                <td th:text="${jdk.subcategory}" class="center"></td>
-                <td><a th:href="@{${jdk.url}}" th:text="${jdk.filename}"></a></td>
-            </tr>
-            <tr th:each="base : ${basefiles}">
-                <td colspan="2" th:text="${base.category}" class="center"></td>
-                <td><a th:href="@{${base.url}}" th:text="${base.filename}"></a></td>
-            </tr>
-            <tr th:each="ext, status : ${commexts}">
-                <td th:text="${ext.category}" th:rowspan="${#lists.size(commexts) + #lists.size(javaexts) + #lists.size(springexts) + #lists.size(openapiexts)}" th:if="${status.first}" class="center"></td>
-                <td th:text="${ext.subcategory}" th:rowspan="${#lists.size(commexts)}" th:if="${status.first}" class="center"></td>
-                <td><a th:href="@{${ext.url}}" th:text="${ext.filename}"></a></td>
-            </tr>
-            <tr th:each="ext, status : ${javaexts}">
-                <td th:text="${ext.subcategory}" th:rowspan="${#lists.size(javaexts)}" th:if="${status.first}" class="center"></td>
-                <td><a th:href="@{${ext.url}}" th:text="${ext.filename}"></a></td>
-            </tr>
-            <tr th:each="ext, status : ${springexts}">
-                <td th:text="${ext.subcategory}" th:rowspan="${#lists.size(springexts)}" th:if="${status.first}" class="center"></td>
-                <td><a th:href="@{${ext.url}}" th:text="${ext.filename}"></a></td>
-            </tr>
-            <tr th:each="ext, status : ${openapiexts}">
-                <td th:text="${ext.subcategory}" th:rowspan="${#lists.size(openapiexts)}" th:if="${status.first}" class="center"></td>
-                <td><a th:href="@{${ext.url}}" th:text="${ext.filename}"></a></td>
-            </tr>
-        </tbody>
-    </table>
+    <div class="container">
+        <header class="header">
+        </header>
+
+        <main class="main-content">
+            <nav class="breadcrumb">
+                <a href="#" class="breadcrumb-item"><i class="fas fa-home"></i> 개발환경</a>
+                <span class="breadcrumb-separator">›</span>
+                <span class="breadcrumb-item active">다운로드</span>
+            </nav>
+
+            <div class="page-header">
+                <h1>다운로드</h1>
+                <div class="page-actions">
+                    <button class="icon-button"><i class="far fa-star"></i></button>
+                    <button class="icon-button"><i class="fas fa-redo"></i></button>
+                </div>
+            </div>
+            <p class="page-description">개발 환경 설정에 필요한 설치 파일 및 관련 확장 프로그램 파일을 제공합니다.</p>
+
+            <!-- Section 1: General Tools & JDK -->
+            <div class="section-container">
+                <h2 class="section-title">기본 설치 파일</h2>
+                
+                <div class="ide-grid grid-3-col">
+                    <!-- Special layout for JDK as one card -->
+                    <div th:if="${fileCategories.containsKey('Amazon Corretto JDK')}" class="ide-card">
+                         <div class="card-header">
+                            <h2 style="font-size: 1.4em;">Amazon Corretto JDK</h2>
+                        </div>
+                        <p class="card-description"> Amazon Corretto Java Development Kit</p>
+                        <div class="jdk-versions-container">
+                            <div th:each="subcategoryEntry : ${fileCategories['Amazon Corretto JDK']}" class="subcategory-box padding-5">
+                                <div th:each="file : ${subcategoryEntry.value}">
+                                   <div class="card-details mtb-0">
+                                        <div class="detail-item">
+                                            <span class="detail-label">Version</span>
+                                            <span class="detail-value" th:text="${subcategoryEntry.key}"></span>
+                                        </div>
+                                        <div class="detail-item">
+                                            <span class="detail-label">File Size</span>
+                                            <span class="detail-value" th:text="${file.file_size != 'Unknown' ? file.file_size : '-'}"></span>
+                                        </div>
+                                        <button class="download-button primary mtb-10" th:data-url="${file.url}" onclick="window.location.href=this.dataset.url">
+                                            <i class="fas fa-download"></i> 다운로드
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Default "one card per file" layout for other general tools -->
+                    <th:block th:each="categoryEntry : ${fileCategories}">
+                        <th:block th:if="${categoryEntry.key != 'Amazon Corretto JDK' and categoryEntry.key != 'VS CODE 확장'}">
+                             <th:block th:each="subcategoryEntry : ${categoryEntry.value}">
+                                <div class="ide-card" th:each="file : ${subcategoryEntry.value}">
+                                    <div class="card-header">
+                                        <h2 th:text="${categoryEntry.key}">Category Name</h2>
+                                    </div>
+                                    <p th:if="${file.description != null}" class="card-description" th:text="${file.description}"></p>
+                                    <div class="card-details">
+                                        <div class="detail-item">
+                                            <span class="detail-label">Version</span>
+                                            <span class="detail-value" th:text="${file.version != 'Unknown' ? file.version : '-'}"></span>
+                                        </div>
+                                        <div class="detail-item">
+                                            <span class="detail-label">File Size</span>
+                                            <span class="detail-value" th:text="${file.file_size != 'Unknown' ? file.file_size : '-'}"></span>
+                                        </div>
+                                    </div>
+                                    <div class="card-footer">
+                                        <span class="download-count"></span>
+                                        <button class="download-button primary" th:data-url="${file.url}" onclick="window.location.href=this.dataset.url">
+                                            <i class="fas fa-download"></i> 다운로드
+                                        </button>
+                                    </div>
+                                </div>
+                            </th:block>
+                        </th:block>
+                    </th:block>
+                </div>
+            </div>
+
+            <!-- Section 2: VS Code Extensions -->
+            <div class="section-container">
+                 <h2 class="section-title">Visual Studio Code 확장 프로그램</h2>
+                <div th:if="${fileCategories.containsKey('VS CODE 확장')}" th:with="subCategoryMap=${fileCategories['VS CODE 확장']}" class="grid-3-col grid-align-stretch">
+                    
+                    <!-- Order: 공통, Java, Spring, OpenAPI -->
+
+                    <!-- Common -->
+                    <div class="ide-card" th:if="${subCategoryMap.containsKey('공통')}" style="justify-content: flex-start;">
+                        <div class="card-header"><h3>공통</h3></div>
+                        <div class="vscode-list-wrapper">
+                            <ul class="vscode-ext-list">
+                                <li th:each="file : ${subCategoryMap['공통']}" class="vscode-ext-item">
+                                    <span class="vscode-ext-filename" th:text="${file.filename}"></span>
+                                    <button class="download-button vscode-ext-button" th:data-url="${file.url}" onclick="window.location.href=this.dataset.url">
+                                        <i class="fas fa-download"></i>
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Java -->
+                    <div class="ide-card" th:if="${subCategoryMap.containsKey('Java')}" style="justify-content: flex-start;">
+                        <div class="card-header"><h3>Java</h3></div>
+                         <div class="vscode-list-wrapper">
+                            <ul class="vscode-ext-list">
+                                <li th:each="file : ${subCategoryMap['Java']}" class="vscode-ext-item">
+                                    <span class="vscode-ext-filename" th:text="${file.filename}"></span>
+                                    <button class="download-button vscode-ext-button" th:data-url="${file.url}" onclick="window.location.href=this.dataset.url">
+                                        <i class="fas fa-download"></i>
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <!-- Spring -->
+                    <div class="ide-card" th:if="${subCategoryMap.containsKey('Spring')}" style="justify-content: flex-start;">
+                        <div class="card-header"><h3>Spring</h3></div>
+                         <div class="vscode-list-wrapper">
+                            <ul class="vscode-ext-list">
+                                <li th:each="file : ${subCategoryMap['Spring']}" class="vscode-ext-item">
+                                    <span class="vscode-ext-filename" th:text="${file.filename}"></span>
+                                    <button class="download-button vscode-ext-button" th:data-url="${file.url}" onclick="window.location.href=this.dataset.url">
+                                        <i class="fas fa-download"></i>
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- OpenAPI -->
+                    <div class="ide-card" th:if="${subCategoryMap.containsKey('OpenAPI')}" style="justify-content: flex-start;">
+                        <div class="card-header"><h3>OpenAPI</h3></div>
+                        <div class="vscode-list-wrapper">
+                            <ul class="vscode-ext-list">
+                                <li th:each="file : ${subCategoryMap['OpenAPI']}" class="vscode-ext-item">
+                                    <span class="vscode-ext-filename" th:text="${file.filename}"></span>
+                                    <button class="download-button vscode-ext-button" th:data-url="${file.url}" onclick="window.location.href=this.dataset.url">
+                                        <i class="fas fa-download"></i>
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </main>
+    </div>
 </body>
 </html>

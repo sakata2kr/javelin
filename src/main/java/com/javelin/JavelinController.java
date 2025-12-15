@@ -5,11 +5,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
@@ -35,152 +34,201 @@ public class JavelinController
     @GetMapping({"/", ""})
     public String showAll(Model model)
     {
-        List<String> fileNames = new ArrayList<>();
+        List<String> relativeFileNames = new ArrayList<>();
         try
         {
             Files.walk(Paths.get(javelinConfig.getDownload().getPath()))
                 .filter(Files::isRegularFile)
-                .forEach(path -> fileNames.add(Paths.get(javelinConfig.getDownload().getPath()).relativize(path).toString()));
+                .forEach(path -> relativeFileNames.add(Paths.get(javelinConfig.getDownload().getPath()).relativize(path).toString()));
         }
         catch (Exception e)
         {
             log.error("FILE FETCH ERROR!!");
         }
 
-        Map<String, Object>tempMap = new HashMap<>();
+        Map<String, Map<String, List<Map<String, Object>>>> allToolsCategories = new LinkedHashMap<>();
+        Map<String, Map<String, List<Map<String, Object>>>> vscodeCategories = new LinkedHashMap<>();
 
-        Set<Map<String, Object>> jdkSet        = new LinkedHashSet<>();
-        Set<Map<String, Object>> commonExtSet  = new LinkedHashSet<>();
-        Set<Map<String, Object>> javaExtSet    = new LinkedHashSet<>();
-        Set<Map<String, Object>> springExtSet  = new LinkedHashSet<>();
-        Set<Map<String, Object>> openapiExtSet = new LinkedHashSet<>();
-        Set<Map<String, Object>> expensionSet  = new LinkedHashSet<>();
-        Set<Map<String, Object>> baseSet       = new LinkedHashSet<>();
-
-        String[] parts = null;
-
-        for (String fileName : fileNames)
+        for (String relativeFileName : relativeFileNames)
         {
-            tempMap = new HashMap<>();
-            parts = fileName.split("/");
-            if ( parts.length > 1)
+            String fullPath = Paths.get(javelinConfig.getDownload().getPath()).resolve(relativeFileName).normalize().toString();
+            Map<String, String> metaData = getFileMetaData(fullPath, relativeFileName);
+            String version = metaData.get("version");
+            String fileSize = metaData.get("file_size");
+            String description = null;
+
+            String[] parts = relativeFileName.split("/");
+            if (parts.length > 1)
             {
-                // Extension에 대해서만 처리함
-                switch( parts[1].toLowerCase() )
+                String subCategory = "";
+                String category = "VS CODE 확장";
+                String file = parts[2];
+                String url = "/getFile/" + relativeFileName;
+
+                switch(parts[1].toLowerCase())
                 {
                     case "common" :
                     case "remote" :
-                        tempMap.put("category", "VS CODE 확장");
-                        tempMap.put("subcategory", "공통");
-                        tempMap.put("filename", parts[2]);
-                        tempMap.put("url", "/getFile/" + fileName);
-                        commonExtSet.add(tempMap);
+                        subCategory = "공통";
+                        description = "VS Code 공통 확장팩";
                         break;
-
                     case "java" :
-                        tempMap.put("category", "VS CODE 확장");
-                        tempMap.put("subcategory", "Java");
-                        tempMap.put("filename", parts[2]);
-                        tempMap.put("url", "/getFile/" + fileName);
-                        javaExtSet.add(tempMap);
+                        subCategory = "Java";
+                        description = "VS Code Java 확장팩";
                         break;
-
                     case "spring" :
-                        tempMap.put("category", "VS CODE 확장");
-                        tempMap.put("subcategory", "Spring");
-                        tempMap.put("filename", parts[2]);
-                        tempMap.put("url", "/getFile/" + fileName);
-                        springExtSet.add(tempMap);
+                        subCategory = "Spring";
+                        description = "VS Code Spring 확장팩";
                         break;
-
                     case "openapi" :
-                        tempMap.put("category", "VS CODE 확장");
-                        tempMap.put("subcategory", "OpenAPI");
-                        tempMap.put("filename", parts[2]);
-                        tempMap.put("url", "/getFile/" + fileName);
-                        openapiExtSet.add(tempMap);
+                        subCategory = "OpenAPI";
+                        description = "VS Code OpenAPI 확장팩";
                         break;
                 }
+                if (!subCategory.isEmpty()) {
+                    addFileToCategory(vscodeCategories, category, subCategory, file, url, version, fileSize, description);
+                }
+            }
+            else 
+            {
+                String actualCategory = "";
+                String subCategory = "파일";
 
-                if ( !tempMap.isEmpty() )
+                 if (relativeFileName.toLowerCase().contains("jdk")) {
+                    actualCategory = "Amazon Corretto JDK";
+                    description = "Java 개발 키트";
+                    subCategory = version;
+                 }
+                else if ( relativeFileName.toLowerCase().startsWith("git") )
                 {
-                    expensionSet.add(tempMap);
+                    actualCategory = "Git";
+                    description = "소스 코드 버전 관리 시스템";
                 }
-            }
-            else if ( fileName.toLowerCase().contains("jdk") )
-            {
-                // 파일명에서 버전 추출 (예: amazon-corretto-21-x64-windows-jdk.msi -> 21)
-                String version = "Unknown";
-                try {
-                    String[] fileNameParts = fileName.split("-");
-                    for (String part : fileNameParts) {
-                        if (part.matches("\\d+")) {
-                            version = part;
-                            break;
-                        }
-                    }
-                } catch (Exception e) {
-                    log.warn("JDK 파일에서 버전 추출 실패: {}", fileName);
+                else if ( relativeFileName.toLowerCase().startsWith("apache-maven") )
+                {
+                    actualCategory = "Apache Maven";
+                    description = "아파치 소프트웨어 재단에서 제공하는 Java 빌드 도구";
                 }
-                
-                tempMap.put("category", "Amazon Corretto JDK");
-                tempMap.put("subcategory", version);
-                tempMap.put("filename", fileName);
-                tempMap.put("url", "/getFile/" + fileName);
-                jdkSet.add(tempMap);
-            }
-            else if ( fileName.toLowerCase().startsWith("apache-maven") )
-            {
-                tempMap.put("category", "Apache Maven");
-                tempMap.put("filename", fileName);
-                tempMap.put("url", "/getFile/" + fileName);
-                baseSet.add(tempMap);
-            }
-            else if ( fileName.toLowerCase().startsWith("gradle") )
-            {
-                tempMap.put("category", "Gradle");
-                tempMap.put("filename", fileName);
-                tempMap.put("url", "/getFile/" + fileName);
-                baseSet.add(tempMap);
-            }
-            else if ( fileName.toLowerCase().startsWith("git") )
-            {
-                tempMap.put("category", "Git 설치 파일");
-                tempMap.put("filename", fileName);
-                tempMap.put("url", "/getFile/" + fileName);
-                baseSet.add(tempMap);
-            }
-            else if ( fileName.toLowerCase().startsWith("vscode") )
-            {
-                tempMap.put("category", "VSCodium (Visual Studio Code 기반 IDE)");
-                tempMap.put("filename", fileName);
-                tempMap.put("url", "/getFile/" + fileName);
-                baseSet.add(tempMap);
-            }
-            else if ( fileName.toLowerCase().contains("spring-tools") )
-            {
-                tempMap.put("category", "Spring Tool Suite (Eclipse 기반 IDE)");
-                tempMap.put("filename", fileName);
-                tempMap.put("url", "/getFile/" + fileName);
-                baseSet.add(tempMap);
-            }
-            else if ( fileName.toLowerCase().startsWith("postman") )
-            {
-                tempMap.put("category", "Postman 설치 파일");
-                tempMap.put("filename", fileName);
-                tempMap.put("url", "/getFile/" + fileName);
-                baseSet.add(tempMap);
+                else if ( relativeFileName.toLowerCase().startsWith("gradle") )
+                {
+                    actualCategory = "Gradle";
+                    description = "Java, Android, Kotlin 언어에 대한 오픈 소스 빌드 자동화 도구";
+                }
+                else if ( relativeFileName.toLowerCase().startsWith("vscode") )
+                {
+                    actualCategory = "Microsoft Visual Studio Code";
+                    description = "마이크로소프트에서 개발한 무료 오픈소스 소스 코드 편집기";
+                }
+                else if ( relativeFileName.toLowerCase().contains("spring-tools") )
+                {
+                    actualCategory = "Spring Tool Suite";
+                    description = "Eclipse IDE 를 기반으로 Spring Framework을 지원하는 IDE";
+                }
+                else if ( relativeFileName.toLowerCase().startsWith("postman") )
+                {
+                    actualCategory = "Postman";
+                    description = "API 개발 및 테스트 도구";
+                }
+
+                if (!actualCategory.isEmpty()) {
+                    addFileToCategory(allToolsCategories, actualCategory, subCategory, relativeFileName, "/getFile/" + relativeFileName, version, fileSize, description);
+                }
             }
         }
 
-        model.addAttribute("basefiles", baseSet);
-        model.addAttribute("jdkfiles", jdkSet);
-        model.addAttribute("commexts", commonExtSet);
-        model.addAttribute("javaexts", javaExtSet);
-        model.addAttribute("springexts", springExtSet);
-        model.addAttribute("openapiexts", openapiExtSet);
+        Map<String, Map<String, List<Map<String, Object>>>> orderedFileCategories = new LinkedHashMap<>();
+        List<String> toolOrder = List.of("Amazon Corretto JDK", "Git", "Apache Maven", "Gradle", "Microsoft Visual Studio Code", "Spring Tool Suite", "Postman");
+
+        toolOrder.forEach(toolName -> {
+            if (allToolsCategories.containsKey(toolName)) {
+                orderedFileCategories.put(toolName, allToolsCategories.get(toolName));
+            }
+        });
+
+        if (!vscodeCategories.isEmpty()) {
+            orderedFileCategories.put("VS CODE 확장", vscodeCategories.get("VS CODE 확장"));
+        }
+
+        model.addAttribute("fileCategories", orderedFileCategories);
 
         return "index";
+    }
+
+    private void addFileToCategory(Map<String, Map<String, List<Map<String, Object>>>> fileCategories,
+                                   String category, String subcategory, String fileName, String url, String version, String fileSize, String description) {
+        Map<String, Object> fileDetails = new HashMap<>();
+        fileDetails.put("filename", fileName);
+        fileDetails.put("url", url);
+        if (version != null) {
+            fileDetails.put("version", version);
+        }
+        if (fileSize != null) {
+            fileDetails.put("file_size", fileSize);
+        }
+        if (description != null) {
+            fileDetails.put("description", description);
+        }
+
+        fileCategories.computeIfAbsent(category, k -> new LinkedHashMap<>())
+                      .computeIfAbsent(subcategory, k -> new ArrayList<>())
+                      .add(fileDetails);
+    }
+
+    private Map<String, String> getFileMetaData(String fullPath, String fileName) {
+        Map<String, String> metaData = new HashMap<>();
+        String version = "Unknown";
+        String fileSize = "Unknown";
+
+        // Extract version
+        if (fileName.toLowerCase().contains("jdk")) {
+            try {
+                String[] fileNameParts = fileName.split("-");
+                for (String part : fileNameParts) {
+                    if (part.matches("\\d+")) { // Check for digits
+                        version = part;
+                        break;
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("JDK 파일에서 버전 추출 실패: {}", fileName);
+            }
+        } else {
+            // General version extraction for other files
+            // This is a simple regex, might need to be refined for specific patterns
+            // Example: "product-1.2.3-final.zip" => "1.2.3"
+            java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("(\\d+\\.\\d+(\\.\\d+)*)").matcher(fileName);
+            if (matcher.find()) {
+                version = matcher.group(1);
+            }
+        }
+
+        // Get file size
+        try {
+            Path path = Paths.get(fullPath);
+            fileSize = formatFileSize(Files.size(path));
+        } catch (Exception e) {
+            log.warn("파일 크기 측정 실패: {}", fullPath);
+        }
+
+        metaData.put("version", version);
+        metaData.put("file_size", fileSize);
+        return metaData;
+    }
+
+    private String formatFileSize(long bytes) {
+        String[] units = new String[] { "B", "KB", "MB", "GB", "TB" };
+        int unitIndex = 0;
+        double size = bytes;
+        while (size >= 1024 && unitIndex < units.length - 1) {
+            size /= 1024;
+            unitIndex++;
+        }
+        return String.format("%.1f %s", size, units[unitIndex]);
+    }
+
+    @GetMapping("/ide-download")
+    public String ideDownload() {
+        return "ide-download";
     }
 
     @GetMapping("/getAll")
