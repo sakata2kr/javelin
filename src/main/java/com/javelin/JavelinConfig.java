@@ -32,6 +32,27 @@ public class JavelinConfig
     private Urls git;
     private Urls postman;
     private SpringToolSuite springToolSuite;
+    private Nexus nexus;
+    private GitLab gitlab;
+
+    @Data
+    public static class GitLab {
+        private String url;
+        private String privateToken;
+        private String groupId; // Optional group ID to query projects within
+        private Boolean includeSubgroups = true;
+        private Boolean archived = false;
+        private Integer perPage = 100; // Projects per page
+    }
+
+    @Data
+    public static class Nexus {
+        private String url;
+        private String releaseRepositoryName = "maven-releases"; // Default release repository
+        private String snapshotRepositoryName = "maven-snapshots"; // Default snapshot repository
+        private String username;
+        private String password;
+    }
 
     @Data
     public static class Download
@@ -104,7 +125,7 @@ public class JavelinConfig
     }
 
     @Bean
-    public WebClient webClient() {
+    public WebClient.Builder webClientBuilder() {
         HttpClient httpClient = HttpClient.create()
                 .followRedirect(true) // 리다이렉션 자동 처리
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 60000) // 연결 타임아웃 60초
@@ -112,15 +133,8 @@ public class JavelinConfig
                 .resolver(DefaultAddressResolverGroup.INSTANCE) // macOS DNS 문제 해결
                 ;
 
-        WebClient.Builder builder = WebClient.builder()
+        return WebClient.builder()
                         .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(100 * 1024 * 1024)) // 100MB로 증가
                         .clientConnector(new ReactorClientHttpConnector(Objects.requireNonNull(httpClient)));
-        
-        // GitHub 토큰이 있을 때만 Authorization 헤더 추가
-        if (GitHubToken != null && !GitHubToken.trim().isEmpty()) {
-            builder.defaultHeader("Authorization", "Bearer " + GitHubToken.trim());
-        }
-        
-        return builder.build();
     }
 }

@@ -17,7 +17,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.core.ParameterizedTypeReference;
@@ -32,14 +31,28 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
+import org.springframework.web.reactive.function.client.WebClient.Builder;
+
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class JavelinDownloadFiles
 {
     private final WebClient webClient;
     private final JavelinConfig javelinConfig;
-    private final ObjectMapper objectMapper = new ObjectMapper();  // ObjectMapper 재사용
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    public JavelinDownloadFiles(WebClient.Builder webClientBuilder, JavelinConfig javelinConfig) {
+        this.javelinConfig = javelinConfig;
+        
+        Builder builder = webClientBuilder.clone();
+        String githubToken = javelinConfig.getGitHubToken();
+        
+        if (githubToken != null && !githubToken.trim().isEmpty()) {
+            builder.defaultHeader("Authorization", "Bearer " + githubToken);
+        }
+        
+        this.webClient = builder.build();
+    }
 
     @PostConstruct
     public void init()

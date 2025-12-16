@@ -231,6 +231,11 @@ public class JavelinController
         return "ide-download";
     }
 
+    @GetMapping("/library")
+    public String library() {
+        return "library";
+    }
+
     @GetMapping("/getAll")
     @ResponseBody
     public ResponseEntity<List<String>> getAllFiles()

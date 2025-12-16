@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>개발소스</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+             <div class="header-left">
+                <nav class="tabs">
+                    <a href="/library" class="tab">라이브러리</a>
+                    <a href="/git" class="tab active">개발소스</a>
+                    <a href="#" class="tab">IDE 설치파일</a>
+                    <a href="#" class="tab">공지사항</a>
+                </nav>
+            </div>
+            <div class="header-right">
+                <button class="icon-button"><i class="fas fa-chevron-left"></i></button>
+                <button class="icon-button"><i class="fas fa-chevron-right"></i></button>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <nav class="breadcrumb">
+                <a href="#" class="breadcrumb-item"><i class="fas fa-home"></i></a>
+                <span class="breadcrumb-separator">›</span>
+                <span class="breadcrumb-item active">개발소스</span>
+            </nav>
+
+            <div class="page-header">
+                <h1>개발소스</h1>
+                <div class="page-actions">
+                    <button class="icon-button"><i class="far fa-star"></i></button>
+                    <button class="icon-button"><i class="fas fa-redo"></i></button>
+                </div>
+            </div>
+            <p class="page-description">사내 공통 소스코드를 공유합니다.</p>
+
+            <div class="search-bar">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" placeholder="레포지토리 검색 (예: nginx, frontend-template...)">
+            </div>
+
+            <h2 class="section-title">레포지토리 목록</h2>
+
+            <div id="repo-list-container" class="repo-list">
+                <!-- Dynamic Content -->
+                <th:block th:if="${projects != null and !projects.isEmpty()}">
+                    <div class="repo-item" th:each="project : ${projects}" th:attr="data-project-id=${project.id}, data-project-name=${project.name}">
+                        <div class="repo-icon-wrapper">
+                            <i class="fas fa-book"></i>
+                        </div>
+                        <div class="repo-info">
+                            <div class="repo-name-tag">
+                                <h3 th:text="${project.name}">Project Name</h3>
+                                <span class="language-tag lang-java">Java</span> 
+                            </div>
+                            <p class="repo-description" th:text="${project.description}">Project description.</p>
+                            <div class="topic-tags" th:if="${project.tagList != null and !project.tagList.isEmpty()}">
+                                <span class="topic-tag" th:each="tag : ${project.tagList}" th:text="${tag}"></span>
+                            </div>
+                            <div class="repo-meta">
+                                <span><i class="far fa-star"></i> <span th:text="${project.starCount}"></span></span>
+                                <span><i class="fas fa-code-branch"></i> <span th:text="${project.forksCount}"></span></span>
+                                <span><i class="far fa-clock"></i> <span th:text="${#strings.substringBefore(project.lastActivityAt, 'T')}"></span></span>
+                            </div>
+                        </div>
+                        <i class="fas fa-chevron-right repo-arrow"></i>
+                    </div>
+                </th:block>
+                
+                <!-- Fallback Static Content -->
+                <th:block th:if="${projects == null or projects.isEmpty()}">
+                    <div class="repo-item">
+                        <div class="repo-icon-wrapper">
+                            <i class="fas fa-book"></i>
+                        </div>
+                        <div class="repo-info">
+                            <div class="repo-name-tag">
+                                <h3>nginx</h3>
+                                <span class="language-tag lang-c">C</span>
+                            </div>
+                            <p class="repo-description">An HTTP and reverse proxy server, a mail proxy server, and a generic TCP/UDP proxy server</p>
+                            <div class="topic-tags">
+                                <span class="topic-tag">http</span>
+                                <span class="topic-tag">proxy</span>
+                                <span class="topic-tag">server</span>
+                                <span class="topic-tag">web-server</span>
+                                <span class="topic-tag">reverse-proxy</span>
+                            </div>
+                            <div class="repo-meta">
+                                <span><i class="far fa-star"></i> 456</span>
+                                <span><i class="fas fa-code-branch"></i> 2058</span>
+                                <span><i class="far fa-clock"></i> 2시간 전</span>
+                            </div>
+                        </div>
+                        <i class="fas fa-chevron-right repo-arrow"></i>
+                    </div>
+                </th:block>
+            </div>
+
+            <div class="pagination">
+                <button class="pagination-button disabled">Previous</button>
+                <button class="pagination-button active">1</button>
+                <button class="pagination-button">2</button>
+                <button class="pagination-button">Next</button>
+            </div>
+        </main>
+    </div>
+
+    <!-- Repo File Browser Modal -->
+    <div id="repo-modal" class="modal" style="display: none;">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <button id="repo-back-button" class="icon-button" style="display: none;"><i class="fas fa-arrow-left"></i></button>
+                <h2 id="repo-modal-title"></h2>
+                <span id="repo-modal-close" class="close-button">&times;</span>
+            </div>
+            <div id="repo-breadcrumb" class="breadcrumb" style="padding-top: 0;"></div>
+            <div id="repo-file-tree" class="file-tree-container">
+                <!-- File tree will be injected here -->
+            </div>
+            <div id="repo-file-content-wrapper" style="display: none;">
+                <pre><code id="repo-file-content" class="language-plaintext"></code></pre>
+            </div>
+        </div>
+    </div>
+
+    <script th:src="@{/js/git.js}"></script>
+</body>
+</html>

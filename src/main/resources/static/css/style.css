@@ -24,6 +24,7 @@
     --tag-cyan: #17a2b8;
     --tag-pink: #e83e8c;
     --tag-teal: #20c997;
+    --tag-light-blue: #3db1f0;
 }
 
 body {
@@ -558,9 +559,7 @@ body {
 
 /* Library Page Specific Styles */
 .library-layout {
-    display: grid;
-    grid-template-columns: 2.5fr 1fr; /* Main list takes more space */
-    gap: 30px;
+    display: block; /* Changed from grid to block */
 }
 
 .search-bar {
@@ -860,3 +859,729 @@ body {
     margin-top: 10px;
     margin-bottom: 10px;
 }
+
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.5);
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background-color: var(--card-background);
+    margin: auto;
+    padding: 20px 30px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    width: 80%;
+    max-width: 700px;
+    position: relative;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+.close-button {
+    color: #aaa;
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.close-button:hover,
+.close-button:focus {
+    color: var(--text-color);
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.modal-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 15px;
+}
+
+.tab-link {
+    background: none;
+    border: none;
+    padding: 10px 15px;
+    cursor: pointer;
+    font-size: 1em;
+    color: var(--light-text-color);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+}
+
+.tab-link.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.tab-content pre {
+    background-color: var(--background-color);
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    padding: 15px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.tab-content code {
+    font-family: 'Consolas', 'Monaco', 'Andale Mono', 'Ubuntu Mono', monospace;
+    font-size: 0.9em;
+    color: var(--text-color);
+}
+
+/* Helper classes */
+.text-center {
+    text-align: center;
+    width: 100%;
+    padding: 20px;
+    color: var(--light-text-color);
+}
+
+.error {
+    color: var(--tag-red);
+}
+
+/* Version History Styles */
+.version-history-container {
+    background-color: #fdfdfd;
+    border: 1px solid var(--border-color);
+    border-top: none; /* Attached to the item above */
+    border-radius: 0 0 8px 8px;
+    margin: 0 0 15px 0; /* Margin bottom to separate from next library */
+    padding: 10px 20px 10px 60px; /* Indent to align with library info */
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.version-history-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    color: var(--light-text-color);
+    font-size: 0.9em;
+}
+
+.version-history-item:hover {
+    background-color: var(--background-color);
+    color: var(--text-color);
+}
+
+/* Make sure Font Awesome spin animation is defined if not already */
+.fa-spin {
+  animation: fa-spin 2s infinite linear;
+}
+
+@keyframes fa-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Repository Type Button Styles */
+.repo-button, .repo-button-small {
+    border: none;
+    border-radius: 4px;
+    font-weight: 700;
+    color: white;
+    vertical-align: middle;
+    cursor: default; /* Not clickable */
+}
+
+.repo-button {
+    padding: 3px 8px;
+    font-size: 0.75em;
+    margin-left: 10px;
+}
+
+.repo-button-small {
+    padding: 2px 5px;
+    font-size: 0.65em;
+    margin-right: 10px; /* Changed from margin-left: auto */
+}
+
+.repo-release {
+    background-color: var(--tag-green);
+}
+
+.repo-snapshot {
+    background-color: var(--tag-light-blue);
+}
+
+.version-history-item .version-text {
+
+    flex-grow: 1;
+
+}
+
+
+
+/* Git Page (Repo List) Specific Styles */
+
+.repo-list {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 15px; /* Same gap as library-list */
+
+}
+
+
+
+.repo-item {
+
+    background-color: var(--card-background);
+
+    border: 1px solid var(--border-color);
+
+    border-radius: 8px;
+
+    padding: 20px;
+
+    display: flex;
+
+    align-items: flex-start; /* Align items to the top */
+
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.03);
+
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+}
+
+
+
+.repo-item:hover {
+
+    transform: translateY(-3px);
+
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+
+}
+
+
+
+.repo-icon-wrapper {
+
+    width: 40px;
+
+    height: 40px;
+
+    border-radius: 8px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    margin-right: 20px;
+
+    background-color: var(--tag-green);
+
+    color: white;
+
+    font-size: 1.5em;
+
+    flex-shrink: 0;
+
+}
+
+
+
+.repo-info {
+
+    flex-grow: 1;
+
+}
+
+
+
+.repo-name-tag {
+
+    display: flex;
+
+    align-items: center;
+
+    margin-bottom: 8px;
+
+}
+
+
+
+.repo-name-tag h3 {
+
+    font-size: 1.3em;
+
+    margin: 0;
+
+    margin-right: 12px;
+
+}
+
+
+
+.language-tag {
+
+    padding: 3px 8px;
+
+    border-radius: 4px;
+
+    font-size: 0.8em;
+
+    font-weight: 600;
+
+    color: white;
+
+    border: 1px solid rgba(0,0,0,0.1);
+
+}
+
+
+
+.lang-c { background-color: #555555; }
+
+.lang-java { background-color: #e8953d; }
+
+.lang-ts { background-color: #3178c6; }
+
+
+
+.repo-description {
+
+    font-size: 0.95em;
+
+    color: var(--light-text-color);
+
+    margin-bottom: 15px;
+
+}
+
+
+
+.topic-tags {
+
+    display: flex;
+
+    flex-wrap: wrap;
+
+    gap: 8px;
+
+    margin-bottom: 15px;
+
+}
+
+
+
+.topic-tag {
+
+    background-color: #eef7ff;
+
+    color: var(--primary-color);
+
+    padding: 4px 12px;
+
+    border-radius: 15px;
+
+    font-size: 0.8em;
+
+    font-weight: 500;
+
+}
+
+
+
+.repo-meta {
+
+    display: flex;
+
+    gap: 20px;
+
+    font-size: 0.9em;
+
+    color: var(--light-text-color);
+
+    padding-top: 15px;
+
+    border-top: 1px solid var(--border-color);
+
+}
+
+
+
+.repo-meta i {
+
+    margin-right: 6px;
+
+}
+
+
+
+.repo-arrow {
+
+
+
+    color: var(--light-text-color);
+
+
+
+    font-size: 1em;
+
+
+
+    margin-left: 20px;
+
+
+
+    margin-top: 4px; /* Align with title */
+
+
+
+    cursor: pointer;
+
+
+
+}
+
+
+
+
+
+
+
+/* Git Repo Modal and File Tree Styles */
+
+
+
+.modal-content.large {
+
+
+
+    max-width: 900px;
+
+
+
+    height: 80vh;
+
+
+
+    display: flex;
+
+
+
+    flex-direction: column;
+
+
+
+}
+
+
+
+
+
+
+
+.modal-header {
+
+
+
+    display: flex;
+
+
+
+    align-items: center;
+
+
+
+    padding-bottom: 15px;
+
+
+
+    border-bottom: 1px solid var(--border-color);
+
+
+
+    margin-bottom: 0; /* Override default */
+
+
+
+}
+
+
+
+
+
+
+
+.modal-header h2 {
+
+
+
+    flex-grow: 1;
+
+
+
+    margin: 0;
+
+
+
+    font-size: 1.5em;
+
+
+
+}
+
+
+
+
+
+
+
+.modal-header .icon-button {
+
+
+
+    margin-right: 15px;
+
+
+
+}
+
+
+
+
+
+
+
+.file-tree-container {
+
+
+
+    padding: 10px 0;
+
+
+
+    overflow-y: auto;
+
+
+
+    flex-grow: 1;
+
+
+
+}
+
+
+
+
+
+
+
+.file-tree-item {
+
+
+
+    display: flex;
+
+
+
+    align-items: center;
+
+
+
+    padding: 8px 10px;
+
+
+
+    border-radius: 5px;
+
+
+
+    cursor: pointer;
+
+
+
+    font-size: 0.95em;
+
+
+
+}
+
+
+
+
+
+
+
+.file-tree-item:hover {
+
+
+
+    background-color: var(--background-color);
+
+
+
+}
+
+
+
+
+
+
+
+.file-tree-item i {
+
+
+
+    margin-right: 10px;
+
+
+
+    width: 16px; /* Align icons */
+
+
+
+    text-align: center;
+
+
+
+    color: var(--primary-color);
+
+
+
+}
+
+
+
+
+
+
+
+.file-tree-item .fa-folder {
+
+
+
+    color: var(--tag-blue);
+
+
+
+}
+
+
+
+.file-tree-item .fa-file-alt {
+
+
+
+    color: var(--light-text-color);
+
+
+
+}
+
+
+
+
+
+
+
+#repo-breadcrumb .breadcrumb-item {
+
+
+
+    cursor: pointer;
+
+
+
+}
+
+
+
+#repo-breadcrumb .breadcrumb-item:hover {
+
+
+
+    text-decoration: underline;
+
+
+
+}
+
+
+
+
+
+
+
+#repo-file-content-wrapper {
+
+
+
+    flex-grow: 1;
+
+
+
+    overflow: auto;
+
+
+
+    border: 1px solid var(--border-color);
+
+
+
+    border-radius: 5px;
+
+
+
+    margin-top: 15px;
+
+
+
+}
+
+
+
+
+
+
+
+#repo-file-content-wrapper pre {
+
+
+
+    margin: 0;
+
+
+
+    height: 100%;
+
+
+
+}
+
+
+
+
