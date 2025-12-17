@@ -49,7 +49,7 @@ args.forEach(arg => {
 });
 
 // fetch 옵션 설정
-const options = {method: "GET", headers: { "Host" : "ccsapidev.sktelecom.com"}};
+const options = {method: "GET", headers: { "Host" : "nova-harbor.sktelecom.com/javelin"}};
 
 // 설치 여부 확인 함수
 function checkInstalled(command) {

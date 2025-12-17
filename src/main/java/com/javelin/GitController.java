@@ -3,6 +3,7 @@ package com.javelin;
 import java.util.List;
 
 import org.springframework.http.MediaType;
+
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -71,6 +72,10 @@ public class GitController {
             projectsApiUrl = String.format("%s/api/v4/projects", gitlabConfig.getUrl());
         }
 
+        if (projectsApiUrl == null) {
+            throw new IllegalStateException("GitLab URL is not configured");
+        }
+        
         UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString(projectsApiUrl)
             .queryParam("simple", true)
             .queryParam("order_by", "last_activity_at")

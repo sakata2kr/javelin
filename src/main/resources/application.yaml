@@ -83,14 +83,14 @@ javelin:
     eclipse-version: "e4.37"
     url: "https://cdn.spring.io/spring-tools/release/{sts-prefix}/{sts-version}/dist/{eclipse-version}/spring-tools-for-eclipse-{sts-version}-{eclipse-version}.0-win32.win32.x86_64.zip"
   nexus:
-    url: "https://nexus.sakata2oc.freeddns.org"
-    release-repository-name: "maven-releases"
-    snapshot-repository-name: "maven-snapshots"
-    username: "${NEXUS_USERNAME:}"
-    password: "${NEXUS_PASSWORD:}"
+    url: "${NEXUS_URL}"
+    release-repository-name: "${NEXUS_RELEASE_REPO}"
+    snapshot-repository-name: "${NEXUS_SNAPSHOT_REPO}"
+    username: "${NEXUS_USERNAME}"
+    password: "${NEXUS_PASSWORD}"
   gitlab:
     url: "https://gitlab.tde.sktelecom.com"
-    private-token: "${GITLAB_PRIVATE_TOKEN:}"
+    private-token: "${GITLAB_PRIVATE_TOKEN}"
     group-id: "60319"
     include-subgroups: true
     archived: false
